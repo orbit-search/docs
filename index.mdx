@@ -1,0 +1,57 @@
+---
+title: "Orbit Search: natural language people search for devs"
+description: "Orbit Search is a REST API for finding professional profiles with natural language. Search globally, read structured profile data, and build search into your product."
+---
+
+Orbit Search gives you a powerful API to search, discover, and read professional profiles using natural language queries. Whether you need to find founders in a city, filter by company and role, or search across your own custom contact directories, Orbit handles query understanding, entity resolution, and ranking automatically — so you can focus on building.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="bolt" href="/quickstart">
+    Make your first search API call in minutes
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Create and manage your API keys
+  </Card>
+  <Card title="Smart Search" icon="magnifying-glass" href="/api/search/smart-search">
+    Full reference for the search endpoint
+  </Card>
+  <Card title="Search Directories" icon="folder" href="/concepts/directories">
+    Search across your own people data
+  </Card>
+</CardGroup>
+
+## How it works
+
+Orbit Search exposes a simple REST API. You authenticate with a developer API key, send a natural language query, and receive ranked profile results. No query language to learn — just describe who you're looking for.
+
+<Steps>
+  <Step title="Get an API key">
+    Sign in to your Orbit account and create a developer API key with the scopes you need (`search:read`, `profile:read`).
+  </Step>
+  <Step title="Run your first search">
+    Call `POST /v2/social/profiles/searches/smart` with a natural language query like `"founders in San Francisco"`.
+  </Step>
+  <Step title="Read profile details">
+    Use profile IDs from search results to fetch full public profiles via `GET /v2/developer/profiles/:id`.
+  </Step>
+  <Step title="Build your integration">
+    Add your own data with Search Directories, scope searches to teams, and manage access with organization API keys.
+  </Step>
+</Steps>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Natural Language Search" icon="wand-magic-sparkles" href="/concepts/search">
+    Query profiles with plain English — Orbit routes your query through structured, semantic, or agentic modes automatically.
+  </Card>
+  <Card title="Search Directories" icon="database" href="/concepts/directories">
+    Upload CSV contact lists or import connections to create searchable private corpora.
+  </Card>
+  <Card title="Credit Metering" icon="coins" href="/concepts/credits">
+    Transparent per-request credit usage with idempotent retries and automatic refunds on failed searches.
+  </Card>
+  <Card title="Organization Access" icon="building" href="/concepts/organizations">
+    Manage teams, issue organization-scoped API keys, and control directory access with fine-grained grants.
+  </Card>
+</CardGroup>

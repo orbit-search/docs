@@ -1,0 +1,112 @@
+---
+title: "How API credits and rate limits work in Orbit Search"
+description: "Orbit Search charges credits per successful request. Learn how reservation, refunds, monthly grants, idempotency, and rate limits work together."
+---
+
+Orbit Search uses a credit system to meter API usage. Credits are consumed per successful request, reserved before expensive work begins, and automatically refunded when a request fails or returns no results. Each month you receive a fresh grant of free credits to start from.
+
+## Credit costs
+
+| Operation | Credits |
+|---|---|
+| Smart search (`POST /v2/social/profiles/searches/smart`) | 2 per successful search |
+| Profile read (`GET /v2/developer/profiles/:id`) | 1 per successful read |
+
+These are the default costs. Your operator may have configured different values.
+
+## How credit reservation works
+
+Credits are reserved before the search executes. If your balance is too low to cover the cost of a request, the API rejects the request immediately — before any search work is done. This means a low-credit account fails fast rather than running a search and then failing on billing.
+
+If the search succeeds and returns results, the reservation is finalized and your balance decreases. If the search fails or returns no results (a `404` response for an empty result set), the reservation is cancelled and your balance is restored. Failed validation, authentication, rate-limit, and system errors also do not consume credits.
+
+## Checking your remaining credits
+
+Every successful metered response includes a header with your remaining balance:
+
+```http
+X-Developer-API-Credits-Remaining: 47
+```
+
+Read this header after each request to track your balance without making a separate API call.
+
+## Out-of-credit error
+
+When your balance is insufficient for a request, you receive a `402` response:
+
+```json
+{
+  "status": "failed",
+  "error": {
+    "code": "developer_api_credits_insufficient",
+    "message": "Developer API credits are insufficient for this request",
+    "requiredCredits": 2,
+    "remainingCredits": 3
+  }
+}
+```
+
+The `requiredCredits` field shows what the request would have cost. The `remainingCredits` field shows your current balance.
+
+## Credit subjects
+
+Credits are metered against a subject, not an individual API key:
+
+- **Personal API keys** → credits charged to your personal account
+- **Organization API keys** → credits charged to the organization
+
+This means all organization API keys share the organization's credit balance, and personal API keys draw from your personal balance. Monthly grants, admin adjustments, and usage reports are also tracked at the subject level.
+
+## Monthly free grant
+
+Your account receives a fresh credit grant at the start of each billing period. This grant resets every month — unused credits do not roll over. The default grant amount is set by your operator.
+
+## Idempotency and safe retries
+
+<Info>
+Send an `Idempotency-Key` header on every search and profile read request. When your client retries after a network failure or timeout, the server matches the key to the original request and returns the cached response without charging credits again. If you omit the header, the server uses an internal request ID that only deduplicates within the same HTTP request — a retry from your client will be treated as a new request and charged separately.
+</Info>
+
+Use a unique key per logical request — a UUID or a client-generated request ID works well:
+
+```bash
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: 7f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
+```
+
+### Idempotency error codes
+
+| Code | HTTP status | Meaning |
+|---|---|---|
+| `developer_api_idempotency_key_conflict` | 409 | You reused a key with different request parameters |
+| `developer_api_idempotency_key_refunded` | 409 | You reused a key from a request that was refunded (zero results or failure) |
+
+If you receive `developer_api_idempotency_key_refunded`, the original request was refunded and the key is no longer usable for a new charge. Generate a new idempotency key and retry.
+
+## Rate limits
+
+Rate limits are enforced per API key, not per IP address. Hitting a rate limit returns a `429` response with error code `developer_api_key_rate_limited`.
+
+| Endpoint | Default limit |
+|---|---|
+| Smart search | 60 requests per 60 seconds |
+| Profile read | 120 requests per 60 seconds |
+
+Rate limits and credits are independent. A request can be rate-limited (`429`) even when credits are available, and a request can be rejected for insufficient credits (`402`) even when the rate limit has capacity.
+
+<Warning>
+Do not log raw API key values in your application. Rate limits are keyed by API key ID — if you need to identify a key in logs or support workflows, use the `display_key` value (for example `sk_orb_a0186...55fd`).
+</Warning>
+
+## Inspecting usage
+
+Authenticated users can retrieve a usage summary — including the current period allowance, credits used, remaining credits, recent ledger entries, and per-key breakdowns — with:
+
+```http
+GET /v2/api-keys/usage
+```
+
+Developer API keys cannot call this endpoint. Use your normal user access token to check usage.

@@ -1,0 +1,149 @@
+---
+title: "Rotate an Orbit Search API key with zero downtime"
+sidebarTitle: "Key Rotation"
+description: "Replace an active Orbit Search API key without dropping requests — create a replacement key, migrate traffic gradually, verify usage, then revoke the old key."
+---
+
+Rotating an API key without downtime requires a careful sequence: create the replacement first, migrate traffic gradually, confirm the new key is receiving requests, and only then revoke the old one. This guide walks you through each step so you can complete a rotation without dropping a single request.
+
+<Warning>
+  The raw API key in `payload.key` is shown **only once** — at the moment of creation. As soon as the create response arrives, store the key in your secrets manager or environment configuration. You cannot retrieve the raw key again after this point; only non-secret metadata (`display_key`, `id`, `last_used_at`, etc.) is available in subsequent list responses.
+</Warning>
+
+## Steps
+
+<Steps>
+  <Step title="Create a new key">
+    Create the replacement key before touching anything in production. Give it a name that makes its purpose and environment clear.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/api-keys" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "production search v2",
+        "scopes": ["search:read", "profile:read"],
+        "expires_at": "2027-12-31T23:59:59.000Z"
+      }'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(`${API_BASE}/v2/api-keys`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "production search v2",
+        scopes: ["search:read", "profile:read"],
+        expires_at: "2027-12-31T23:59:59.000Z",
+      }),
+    });
+    const data = await response.json();
+    const newRawKey = data.payload.key; // store this immediately
+    const newKeyId = data.payload.id;
+    ```
+
+    </CodeGroup>
+
+    Store `payload.key` (the raw key) and `payload.id` immediately. You need `id` to verify traffic and eventually revoke the old key.
+
+    <Tip>
+      Use the `name` field to encode the key's purpose and environment — for example, `"production search v2"` or `"staging worker 2026-05"`. The `display_key` field (e.g., `sk_orb_a0186...55fd`) combines a non-secret prefix and suffix that you can safely show in dashboards, logs, and support tickets to identify a key without exposing the raw secret.
+    </Tip>
+  </Step>
+
+  <Step title="Update one caller or environment">
+    Pick one service, worker, or environment and update it to use the new key. Keep all other callers on the old key for now. This limits blast radius if something goes wrong with the new key.
+
+    Update the relevant environment variable or secret:
+
+    ```bash
+    # Example: update a single environment's secret
+    export ORBIT_API_KEY="sk_orb_NEW_KEY_VALUE"
+    ```
+
+    Deploy or restart only that one caller, then send a test request to confirm it returns a successful response.
+  </Step>
+
+  <Step title="Verify traffic on the new key">
+    Fetch your key list and confirm the new key's `last_used_at` timestamp has advanced. This proves the key is being used in production.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl "$API_BASE/v2/api-keys" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(`${API_BASE}/v2/api-keys`, {
+      headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
+    });
+    const data = await response.json();
+    const newKey = data.payload.keys.find((k) => k.id === NEW_KEY_ID);
+    console.log(newKey.last_used_at); // should be recent
+    ```
+
+    </CodeGroup>
+
+    Example list response entry for the new key:
+
+    ```json
+    {
+      "id": "new-key-uuid",
+      "prefix": "sk_orb_b1297",
+      "suffix": "66ge",
+      "display_key": "sk_orb_b1297...66ge",
+      "name": "production search v2",
+      "scopes": ["search:read", "profile:read"],
+      "created_at": "2026-05-05T10:00:00.000Z",
+      "last_used_at": "2026-05-05T10:15:34.000Z",
+      "expires_at": "2027-12-31T23:59:59.000Z",
+      "is_active": true,
+      "is_expired": false
+    }
+    ```
+
+    If `last_used_at` is still null or unchanged, the caller has not switched over yet. Investigate before proceeding.
+  </Step>
+
+  <Step title="Move all remaining callers">
+    Once you've confirmed the new key works, update every remaining service, worker, CI environment, and integration to use the new key. Redeploy or restart each caller as needed.
+
+    Take your time here — both the old and new keys are active simultaneously, so there is no rush and no downtime risk during this phase.
+  </Step>
+
+  <Step title="Revoke the old key">
+    Once all callers have moved to the new key and you've verified no traffic is hitting the old key, revoke it.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X PUT "$API_BASE/v2/api-keys/$OLD_KEY_ID/revoke" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    await fetch(`${API_BASE}/v2/api-keys/${OLD_KEY_ID}/revoke`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
+    });
+    ```
+
+    </CodeGroup>
+
+    Revoked keys are immediately rejected by authentication and show `is_active: false` in list responses. They remain visible in the list as inactive metadata, which preserves an audit trail linking the key to past requests.
+
+    <Info>
+      Prefer `PUT /v2/api-keys/:id/revoke` over `DELETE /v2/api-keys/:id` for rotation. Deletion removes the key record entirely, which eliminates its audit trail. Revocation keeps the key visible in an inactive state so you (and support) can correlate historical request IDs and ledger entries back to the key that made them.
+    </Info>
+  </Step>
+</Steps>
+
+## What gets logged
+
+Every key creation, revocation, deletion, expiry event, and failed authentication attempt is written to the audit log with non-secret key identifiers only (`id`, `display_key`). The raw key is never stored or logged after creation.

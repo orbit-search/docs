@@ -1,0 +1,119 @@
+{
+  "projectType": "api-service",
+  "projectName": "Orbit Search",
+  "projectDescription": "An AI-powered people search API that lets developers query a rich index of professional profiles using natural language, with scoped directories, organization management, and metered API key access.",
+  "theme": "luma",
+  "primaryColor": "#33c7f5",
+  "lightColor": "#12135a",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/search",
+              "concepts/directories",
+              "concepts/organizations",
+              "concepts/credits"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/first-search",
+              "guides/directory-setup",
+              "guides/key-rotation",
+              "guides/error-handling"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Search",
+            "pages": [
+              "api/search/smart-search",
+              "api/search/profile-read"
+            ]
+          },
+          {
+            "group": "API Keys",
+            "pages": [
+              "api/api-keys/create",
+              "api/api-keys/list",
+              "api/api-keys/revoke",
+              "api/api-keys/usage"
+            ]
+          },
+          {
+            "group": "Directories",
+            "pages": [
+              "api/directories/manage",
+              "api/directories/sources",
+              "api/directories/grants"
+            ]
+          },
+          {
+            "group": "Organizations",
+            "pages": [
+              "api/organizations/overview",
+              "api/organizations/teams"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Natural language smart search over millions of professional profiles",
+    "Scoped search: global, team-based, or custom directory corpora",
+    "AI-powered query routing with structured, semantic, and agentic tiers",
+    "Developer API keys with fine-grained scopes and credit metering",
+    "CSV upload and connection import for custom searchable directories",
+    "Organization and team access management for enterprise workloads",
+    "Profile read API returning a safe, allowlisted public DTO",
+    "Idempotent requests and safe credit refunds on failures"
+  ],
+  "publicApiSurface": [
+    "POST /v2/social/profiles/searches/smart",
+    "GET /v2/developer/profiles/:id",
+    "POST /v2/api-keys",
+    "GET /v2/api-keys",
+    "GET /v2/api-keys/usage",
+    "PUT /v2/api-keys/:id/revoke",
+    "DELETE /v2/api-keys/:id",
+    "POST /v2/organizations/:organizationId/api-keys",
+    "POST /v2/organizations/:organizationId/directories",
+    "GET /v2/organizations/:organizationId/directories",
+    "GET /v2/organizations/:organizationId/directories/:directoryId",
+    "PATCH /v2/organizations/:organizationId/directories/:directoryId",
+    "POST /v2/organizations/:organizationId/directories/:directoryId/archive",
+    "DELETE /v2/organizations/:organizationId/directories/:directoryId",
+    "POST /v2/organizations/:organizationId/directories/:directoryId/sources/csv-upload",
+    "GET /v2/organizations/:organizationId/directories/:directoryId/sources",
+    "GET /v2/organizations/:organizationId/directories/:directoryId/sources/:sourceId/status",
+    "GET /v2/organizations/:organizationId/directories/:directoryId/grants",
+    "POST /v2/organizations/:organizationId/directories/:directoryId/grants",
+    "DELETE /v2/organizations/:organizationId/directories/:directoryId/grants/:grantId",
+    "POST /v2/social/connections/import",
+    "GET /v2/social/connections/imports/:jobId",
+    "GET /v2/people/search/deep/list",
+    "POST /v2/people/search/deep/async",
+    "GET /v2/people/search/deep/:id/status",
+    "POST /v2/users/bulk-create",
+    "POST /v2/users/link"
+  ]
+}

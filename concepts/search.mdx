@@ -1,0 +1,133 @@
+---
+title: "How Orbit Search understands and routes your queries"
+description: "Learn how Orbit Search interprets natural language, which request fields are required, and how to scope a search to global profiles or private directories."
+---
+
+Orbit Search accepts plain English queries and handles the hard parts — query understanding, semantic matching, entity resolution, and ranking — automatically. You send a query like `"founders in San Francisco"` and receive ranked profile results. There is no query language to learn and no schema to map against; the API infers your intent from the natural language you provide.
+
+## The search endpoint
+
+All search requests go to the same endpoint:
+
+```http
+POST /v2/social/profiles/searches/smart
+```
+
+Authenticate with your developer API key in the `Authorization` header:
+
+```bash
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: your-unique-request-id" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
+```
+
+A successful response looks like this:
+
+```json
+{
+  "status": "success",
+  "searchId": "uuid",
+  "payload": {
+    "users": []
+  }
+}
+```
+
+<Note>
+Include an `Idempotency-Key` header on every search request. If your client retries the request after a network failure, the server uses this key to detect the duplicate and avoid charging credits twice. If you omit the header, the server falls back to the internal request ID — which protects within a single request but cannot deduplicate a later client retry. See [API credits](/concepts/credits) for full idempotency behavior.
+</Note>
+
+## Request fields
+
+Every search request body has three fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `query` | string | Yes | A natural language description of who you are looking for |
+| `numUsers` | integer | Yes | How many results to return; must be a positive integer, maximum 100 |
+| `searchScope` | object | No | Constrains where the search runs; defaults to `global` if omitted |
+
+`userId` and `searchId` are not accepted in developer API requests. SSE (server-sent events) endpoints are not part of the developer API surface.
+
+## Search scopes
+
+The `searchScope` field controls which corpus the search runs against. There are four scope shapes.
+
+### Global search
+
+Omitting `searchScope` or setting `type` to `"global"` runs the search across all public Orbit profiles. This is the default for personal API keys and works with any `search:read` key.
+
+```json
+{
+  "query": "founders in sf",
+  "numUsers": 10,
+  "searchScope": { "type": "global" }
+}
+```
+
+### Team connections search
+
+The `team_connections` scope searches the directories that have been granted to a specific team. The API resolves the team to its granted directories and then runs directory search — your key must be an organization API key that belongs to the team's organization.
+
+```json
+{
+  "query": "founders in sf",
+  "numUsers": 10,
+  "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
+}
+```
+
+### Single directory search
+
+The `directory` scope limits results to one specific directory by ID. Use this when you want to search a single private corpus you manage.
+
+```json
+{
+  "query": "festival programmers",
+  "numUsers": 10,
+  "searchScope": { "type": "directory", "directoryId": "DIRECTORY_UUID" }
+}
+```
+
+### Multi-directory search
+
+The `directories` scope searches across multiple directories at once. All directories must belong to the same organization. Duplicate IDs are normalized automatically; archived or missing directories are rejected.
+
+```json
+{
+  "query": "festival programmers",
+  "numUsers": 10,
+  "searchScope": {
+    "type": "directories",
+    "directoryIds": ["DIRECTORY_UUID_A", "DIRECTORY_UUID_B"]
+  }
+}
+```
+
+## Personal vs. organization API keys
+
+Global search works with both personal and organization API keys. Directory-scoped search — including `team_connections`, `directory`, and `directories` scopes — requires an organization API key. Personal API keys are rejected for any scope that targets a private corpus.
+
+For details on creating organization API keys and managing directory access, see [Organizations](/concepts/organizations) and [Search Directories](/concepts/directories).
+
+## Reading profiles from search results
+
+Search results include user IDs you can use to fetch full public profiles. Use the `GET /v2/developer/profiles/:id` endpoint with the same API key:
+
+```bash
+SEARCH_RESPONSE=$(
+  curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+    -H "Authorization: Bearer sk_orb_REDACTED" \
+    -H "Content-Type: application/json" \
+    -d '{"query":"founders in sf","numUsers":10}'
+)
+
+PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+
+curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
+  -H "Authorization: Bearer sk_orb_REDACTED"
+```
+
+Profile reads require the `profile:read` scope and cost 1 credit each. See [API credits](/concepts/credits) for details.

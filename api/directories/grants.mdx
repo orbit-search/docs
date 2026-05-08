@@ -1,0 +1,138 @@
+---
+title: "Directory access grants for Orbit Search directories"
+sidebarTitle: "Directory Grants"
+description: "Control who can search, upload to, or administer an Orbit directory by assigning grants to organizations, teams, users, or API keys with specific permissions."
+---
+
+Directory grants are the permission records that control access to a directory. Each grant assigns a single permission level to a principal — an organization, team, user, or API key. When a request arrives, Orbit checks whether the caller's principal matches any grant on the requested directory. You use the endpoints below to inspect and modify the grant list for any directory your credentials can manage.
+
+<Note>
+  Organization admins have implicit access to all directories within their organization and do not require explicit grants.
+
+  For developer API key directory search, the key must be an organization API key (not a personal key) and must match an `organization`, `team`, or `api_key` grant with `search` or `manage` permission on the target directory. Personal API keys are always rejected for directory search.
+</Note>
+
+---
+
+## Permissions
+
+<AccordionGroup>
+  <Accordion title="search">
+    Allows the principal to run directory-scoped search queries against this directory. This is the minimum permission required for an organization API key to search the directory.
+  </Accordion>
+
+  <Accordion title="upload">
+    Allows the principal to upload source data into this directory, including CSV files and connection imports.
+  </Accordion>
+
+  <Accordion title="manage">
+    Full administrative control. A principal with `manage` permission can update directory metadata, manage sources, create and delete grants, and run searches. Grants `search` and `upload` capabilities as well.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Grant principals
+
+| Principal type | What it grants access to |
+| --- | --- |
+| `organization` | All users and API keys across the entire organization. |
+| `team` | All users and API keys associated with that team. |
+| `user` | One specific organization member. |
+| `api_key` | One specific organization API key. |
+
+---
+
+## List grants
+
+`GET /v2/organizations/:organizationId/directories/:directoryId/grants`
+
+Returns all grants currently assigned to the specified directory.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory whose grants you want to list.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+</CodeGroup>
+
+---
+
+## Create a grant
+
+`POST /v2/organizations/:organizationId/directories/:directoryId/grants`
+
+Assigns a permission to a principal on the specified directory. If the principal already has a grant on this directory, the existing grant is updated.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to grant access on.
+</ParamField>
+
+### Request body
+
+<ParamField body="principal_type" type="string" required>
+  The type of principal receiving the grant. One of `organization`, `team`, `user`, or `api_key`.
+</ParamField>
+
+<ParamField body="principal_id" type="string" required>
+  The UUID of the principal — the organization ID, team ID, user ID, or API key ID depending on `principal_type`.
+</ParamField>
+
+<ParamField body="permission" type="string" required>
+  The permission to assign. One of `search`, `upload`, or `manage`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "principal_type": "api_key",
+    "principal_id": "API_KEY_UUID",
+    "permission": "search"
+  }'
+```
+
+</CodeGroup>
+
+---
+
+## Delete a grant
+
+`DELETE /v2/organizations/:organizationId/directories/:directoryId/grants/:grantId`
+
+Removes a grant from a directory. The principal immediately loses the associated permission.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory.
+</ParamField>
+
+<ParamField path="grantId" type="string" required>
+  The UUID of the grant to delete.
+</ParamField>

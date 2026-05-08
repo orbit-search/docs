@@ -1,0 +1,140 @@
+---
+title: "Teams and team-scoped directory search in Orbit Search"
+sidebarTitle: "Teams"
+description: "Group organization members and API keys into teams, grant teams directory access, and run team-scoped searches using the team_connections search scope."
+---
+
+Teams are logical groups inside a workspace organization. You use teams to manage directory access at a group level rather than granting permissions to individual users or API keys. When you grant a directory permission to a team, every user and API key associated with that team can exercise that permission on the directory. Teams also let you scope organization API keys so that a given key can only access the directories granted to a specific team — useful for building tenant-isolated integrations within one organization.
+
+<Note>
+  The `team_connections` search scope is an API-level convenience. When you send a search request with `"type": "team_connections"`, Orbit resolves the team to the directories it has been granted access to, then runs a normal directory search against those directories. No separate search index exists for teams; directory search always runs under the hood.
+</Note>
+
+<Warning>
+  Personal API keys cannot use the `team_connections` scope. You must use an organization API key with `search:read` scope and a matching directory grant to perform team-scoped searches.
+</Warning>
+
+---
+
+## Team-scoped search
+
+To search across all directories a team has access to, use the `team_connections` search scope in a `POST /v2/social/profiles/searches/smart` request.
+
+```json
+{
+  "query": "founders in sf",
+  "numUsers": 10,
+  "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
+}
+```
+
+Orbit resolves `teamId` to the set of directories granted to that team and executes directory search across all of them. The team must have a `search` or `manage` grant on each directory that is searched.
+
+---
+
+## Create a team-scoped organization API key
+
+To restrict an organization API key to a specific team's directories, pass `team_ids` when creating the key. The key can then only access directories that are granted to one of those teams.
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "team search key",
+    "scopes": ["search:read"],
+    "team_ids": ["TEAM_UUID"]
+  }'
+```
+
+</CodeGroup>
+
+Store the `payload.key` value from the response immediately — it is returned only once. Use the `display_key` field (for example `sk_orb_a0186...55fd`) to identify the key in management views.
+
+---
+
+## Run a team-scoped search
+
+After creating a team-scoped organization API key and granting the team `search` permission on one or more directories, you can search those directories using the `team_connections` scope:
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer $ORG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "founders in sf",
+    "numUsers": 10,
+    "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
+  }'
+```
+
+</CodeGroup>
+
+A successful response returns matching people from across all directories granted to that team:
+
+```json
+{
+  "status": "success",
+  "searchId": "uuid",
+  "payload": {
+    "users": []
+  }
+}
+```
+
+---
+
+## Access control setup
+
+To wire up a team for directory search, follow this sequence:
+
+<Steps>
+  <Step title="Grant the team access to a directory">
+    Use the [grants API](/api/directories/grants) to assign `search` or `manage` permission to the team on each directory you want it to be able to search.
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "principal_type": "team",
+        "principal_id": "TEAM_UUID",
+        "permission": "search"
+      }'
+    ```
+  </Step>
+
+  <Step title="Create a team-scoped organization API key">
+    Pass the team's UUID in `team_ids` when creating the key. The key inherits access only to directories granted to that team.
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "team search key",
+        "scopes": ["search:read"],
+        "team_ids": ["TEAM_UUID"]
+      }'
+    ```
+  </Step>
+
+  <Step title="Search using the team_connections scope">
+    Use the organization API key to run searches scoped to the team. Orbit resolves the team to its granted directories and runs directory search.
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+      -H "Authorization: Bearer $ORG_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "query": "founders in sf",
+        "numUsers": 10,
+        "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
+      }'
+    ```
+  </Step>
+</Steps>

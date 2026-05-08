@@ -1,0 +1,176 @@
+---
+title: "Get started with Orbit Search: your first API call"
+description: "Create an API key, run a smart search with a plain-English query, and fetch a full profile record — all with a single bearer token."
+---
+
+This guide walks you through the three steps you need to make your first working Orbit Search request: creating an API key, running a smart search, and reading a profile. By the end you'll have a bearer token, a search result, and a structured profile object — all from the API base URL `https://api.orbitsearch.com`.
+
+<Steps>
+  <Step title="Create an API key">
+    Log in to your Orbit Search account and create a personal API key with the `search:read` and `profile:read` scopes. The raw key is returned exactly once in the `payload.key` field — copy it to a secure location immediately.
+
+    ```bash
+    curl -X POST "https://api.orbitsearch.com/v2/api-keys" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"my first key","scopes":["search:read","profile:read"]}'
+    ```
+
+    The response includes your key in `payload.key`:
+
+    ```json
+    {
+      "status": "success",
+      "payload": {
+        "id": "uuid",
+        "key": "sk_orb_a0186REDACTED55fd",
+        "display_key": "sk_orb_a0186...55fd",
+        "name": "my first key",
+        "scopes": ["search:read", "profile:read"],
+        "created_at": "2026-04-29T00:00:00.000Z"
+      }
+    }
+    ```
+
+    <Warning>
+      The raw key in `payload.key` is shown only once. After creation, the API only returns the non-secret `display_key` (e.g. `sk_orb_a0186...55fd`). Store `payload.key` in a secrets manager or environment variable before closing this response.
+    </Warning>
+  </Step>
+
+  <Step title="Run a smart search">
+    Use `POST /v2/social/profiles/searches/smart` to search the Orbit index in plain English. Pass your API key as a bearer token. The `query` and `numUsers` fields are both required.
+
+    <CodeGroup>
+
+    ```bash cURL
+    curl -X POST "https://api.orbitsearch.com/v2/social/profiles/searches/smart" \
+      -H "Authorization: Bearer sk_orb_REDACTED" \
+      -H "Idempotency-Key: your-unique-request-id" \
+      -H "Content-Type: application/json" \
+      -d '{"query":"founders in sf","numUsers":10}'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      "https://api.orbitsearch.com/v2/social/profiles/searches/smart",
+      {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer sk_orb_REDACTED",
+          "Idempotency-Key": crypto.randomUUID(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: "founders in sf", numUsers: 10 }),
+      }
+    );
+
+    const data = await response.json();
+    ```
+
+    </CodeGroup>
+
+    A successful response looks like this:
+
+    ```json
+    {
+      "status": "success",
+      "searchId": "uuid",
+      "payload": {
+        "users": []
+      }
+    }
+    ```
+
+    Each object in `payload.users` includes a `userId` you can use to fetch the full profile. The response also includes the `X-Developer-API-Credits-Remaining` header so you can track how many credits you have left.
+
+    <Tip>
+      Include an `Idempotency-Key` header on every search request. If your client retries after a network error, the same key prevents you from being charged twice for the same search. Use a fresh key for each logically distinct request.
+    </Tip>
+
+    <Note>
+      Smart search costs 2 credits per successful request. If the search returns no results or fails, the reservation is refunded and no credits are consumed. Requests that exceed your credit balance return a `402` with code `developer_api_credits_insufficient` before any search work begins.
+    </Note>
+  </Step>
+
+  <Step title="Read a profile">
+    Take a `userId` from your search results and pass it to `GET /v2/developer/profiles/:id`. Each profile read costs 1 credit; not-found and failed reads are refunded.
+
+    <CodeGroup>
+
+    ```bash cURL
+    # Extract the first userId from your search response, then fetch the profile
+    SEARCH_RESPONSE=$(
+      curl -s -X POST "https://api.orbitsearch.com/v2/social/profiles/searches/smart" \
+        -H "Authorization: Bearer sk_orb_REDACTED" \
+        -H "Content-Type: application/json" \
+        -d '{"query":"founders in sf","numUsers":10}'
+    )
+
+    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+
+    curl "https://api.orbitsearch.com/v2/developer/profiles/$PROFILE_ID" \
+      -H "Authorization: Bearer sk_orb_REDACTED"
+    ```
+
+    ```javascript JavaScript
+    // After getting searchData from the search step above:
+    const userId = searchData.payload.users[0].userId;
+
+    const profileResponse = await fetch(
+      `https://api.orbitsearch.com/v2/developer/profiles/${userId}`,
+      {
+        headers: {
+          Authorization: "Bearer sk_orb_REDACTED",
+        },
+      }
+    );
+
+    const profile = await profileResponse.json();
+    ```
+
+    </CodeGroup>
+
+    The profile response contains a structured, public-safe DTO:
+
+    ```json
+    {
+      "status": "success",
+      "payload": {
+        "id": "usr_a1b2c3d4e5f6",
+        "orbitId": "orbit-profile-id",
+        "displayName": "Ada Lovelace",
+        "avatarUrl": "https://...",
+        "profileUrl": "https://orbitsearch.com/ada",
+        "verified": true,
+        "location": {
+          "city": "San Francisco, CA, US"
+        },
+        "headline": {
+          "jobTitle": "Founder",
+          "companyName": "Example Co",
+          "schoolName": "Example University"
+        },
+        "sections": {
+          "basic": {
+            "school": "Example University",
+            "location": "San Francisco"
+          },
+          "personalLife": null,
+          "jobs": null,
+          "education": null,
+          "passions": null,
+          "worldview": null,
+          "accomplishments": null,
+          "controversies": null,
+          "bestQualities": null,
+          "netWorth": null,
+          "portfolio": null,
+          "families": null
+        }
+      }
+    }
+    ```
+
+    The profile DTO exposes a public-safe allowlist of fields. It does not include raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields.
+  </Step>
+</Steps>

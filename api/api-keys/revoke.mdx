@@ -1,0 +1,94 @@
+---
+title: "Revoke or delete an Orbit Search developer API key"
+sidebarTitle: "Revoke Key"
+description: "Deactivate an Orbit Search API key immediately with revoke, or permanently remove it with delete. Revoke preserves the audit trail; delete removes all metadata."
+---
+
+When you need to retire a key — whether because you are rotating it, decommissioning a service, or responding to a suspected exposure — you have two options: **revoke** or **delete**. Both take effect immediately: the key stops authenticating requests at the moment the call completes. The difference is what happens afterward in your key list.
+
+## Endpoints
+
+| Action | Method | Path |
+| ------ | ------ | ---- |
+| Revoke | `PUT` | `/v2/api-keys/:id/revoke` |
+| Delete | `DELETE` | `/v2/api-keys/:id` |
+
+Both endpoints require a normal user session Bearer token. Developer API keys cannot call key management endpoints.
+
+## When to use each
+
+**Prefer revoke for key rotation.** A revoked key remains visible in `GET /v2/api-keys` with `is_active: false`. This preserves an audit trail so you can confirm which key was active during any given time window and verify that the old key is no longer receiving traffic.
+
+**Use delete only for permanent cleanup.** Once deleted, the key no longer appears in list responses. Delete when you are certain you no longer need the key's metadata — for example, when removing a test key after a project ends.
+
+<Tip>
+  Recommended rotation workflow:
+
+  1. Create a new key and store `payload.key` immediately.
+  2. Update one caller or environment variable to use the new key.
+  3. Check `last_used_at` on the new key via `GET /v2/api-keys` to confirm traffic has moved.
+  4. Move remaining callers to the new key.
+  5. Revoke the old key with `PUT /v2/api-keys/:id/revoke`.
+</Tip>
+
+## Path parameters
+
+<ParamField path="id" type="string" required>
+  The UUID of the API key to revoke or delete. Retrieve this value from the `id` field in a `GET /v2/api-keys` response.
+</ParamField>
+
+## Examples
+
+<Tabs>
+  <Tab title="Revoke">
+    <CodeGroup>
+
+    ```bash curl
+    curl -X PUT "$API_BASE/v2/api-keys/$KEY_ID/revoke" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(`${API_BASE}/v2/api-keys/${KEY_ID}/revoke`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+      },
+    });
+
+    const data = await response.json();
+    console.log(data.status); // "success"
+    ```
+
+    </CodeGroup>
+  </Tab>
+  <Tab title="Delete">
+    <CodeGroup>
+
+    ```bash curl
+    curl -X DELETE "$API_BASE/v2/api-keys/$KEY_ID" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(`${API_BASE}/v2/api-keys/${KEY_ID}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+      },
+    });
+
+    const data = await response.json();
+    console.log(data.status); // "success"
+    ```
+
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+## Error codes
+
+| Code | HTTP status | Description |
+| ---- | ----------- | ----------- |
+| `invalid_api_key_request` | 409 | The key is already revoked. You cannot revoke a key that is no longer active. |
+| `api_key_management_requires_user_auth` | 403 | The request was made with a developer API key instead of a user access token. |

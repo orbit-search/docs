@@ -1,0 +1,75 @@
+---
+title: "GET /v2/api-keys/usage — view credits and key usage"
+sidebarTitle: "Usage"
+description: "Check your current Orbit Search credit balance, monthly allowance, recent transaction ledger, and per-key usage breakdown for the current billing period."
+---
+
+The usage endpoint gives you a real-time view of your developer API credit account. You can see how many credits your allowance covers for the current billing period, how many you have consumed, how many remain, a ledger of recent transactions, and a breakdown of consumption by individual API key. Use this to budget requests, troubleshoot unexpected credit usage, and confirm that credits were correctly refunded after a failed search.
+
+<Note>
+  This endpoint requires your **user access token** — not a developer API key. Developer API keys cannot call key management or usage endpoints. Authenticate with `Authorization: Bearer $USER_ACCESS_TOKEN`.
+</Note>
+
+## Endpoint
+
+```
+GET /v2/api-keys/usage
+```
+
+<Info>
+  Credit accounting is subject-based. Credits consumed by a **personal API key** are charged against your user account. Credits consumed by an **organization API key** are charged against the organization, not the key creator. Monthly grants, refunds, and admin adjustments all follow the same subject boundary.
+</Info>
+
+## Example
+
+<CodeGroup>
+
+```bash curl
+curl "$API_BASE/v2/api-keys/usage" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch(`${API_BASE}/v2/api-keys/usage`, {
+  headers: {
+    Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+  },
+});
+
+const { payload } = await response.json();
+console.log(payload);
+```
+
+</CodeGroup>
+
+## Response fields
+
+The response includes summary figures for the current billing period as well as detailed ledger and per-key breakdowns.
+
+<ResponseField name="status" type="string" required>
+  Always `"success"` on a successful response.
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  <Expandable title="payload properties" defaultOpen={true}>
+    <ResponseField name="allowance" type="number" required>
+      Total credits available for the current period, including the monthly free grant and any admin adjustments.
+    </ResponseField>
+
+    <ResponseField name="used" type="number" required>
+      Credits consumed so far in the current period.
+    </ResponseField>
+
+    <ResponseField name="remaining" type="number" required>
+      Credits still available (`allowance` minus `used`). Requests fail with `developer_api_credits_insufficient` when this reaches zero.
+    </ResponseField>
+
+    <ResponseField name="ledger" type="object[]" required>
+      Recent credit transactions in reverse chronological order. Each entry records the subject, `api_key_id` (when applicable), endpoint, request ID, idempotency key, signed credit amount, running balance after the entry, metadata, and timestamp.
+    </ResponseField>
+
+    <ResponseField name="keys" type="object[]" required>
+      Per-key usage breakdown. Each entry links a key's `id` and `display_key` to the credits it has consumed in the current period.
+    </ResponseField>
+  </Expandable>
+</ResponseField>

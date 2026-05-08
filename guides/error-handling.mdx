@@ -1,0 +1,216 @@
+---
+title: "Handle Orbit Search API errors in your application"
+sidebarTitle: "Error Handling"
+description: "Understand the Orbit Search error response format and every error code your application may encounter, including HTTP status, cause, and remediation."
+---
+
+Every error from the Orbit Search API follows a consistent JSON shape with a machine-readable `code` field. Building your error handling around these codes — rather than HTTP status codes or message strings — gives you reliable, forward-compatible error detection. This page covers the full error format and every code grouped by category.
+
+## Error response format
+
+All error responses use this shape:
+
+```json
+{
+  "status": "failed",
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable description of the error."
+  }
+}
+```
+
+Some error codes include additional fields alongside `code` and `message`. For example, a credit-insufficient error also returns the amounts involved:
+
+```json
+{
+  "status": "failed",
+  "error": {
+    "code": "developer_api_credits_insufficient",
+    "message": "Developer API credits are insufficient for this request",
+    "requiredCredits": 2,
+    "remainingCredits": 0
+  }
+}
+```
+
+Your error handling should always read the `error.code` field to determine what happened and how to respond.
+
+## Error codes by category
+
+<AccordionGroup>
+  <Accordion title="Authentication errors">
+    These errors indicate a problem with how the request is authenticated. Check your `Authorization` header and key configuration.
+
+    | HTTP | Code | Description |
+    |------|------|-------------|
+    | 401 | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided. Add the header with a valid developer API key. |
+    | 403 | `invalid_api_key` | The key is malformed, revoked, expired, or unknown. Verify the key is active in your key list and has not been revoked or expired. |
+    | 403 | `missing_api_key_scope` | The key does not include the scope required for this endpoint. For search, the key needs `search:read`; for profile reads, it needs `profile:read`. Create a new key with the correct scopes. |
+    | 403 | `api_key_management_requires_user_auth` | A developer API key attempted to create, list, revoke, or delete keys. Key management endpoints require a normal user session token, not a developer API key. |
+
+    Example handling:
+
+    ```javascript
+    if (error.code === "invalid_api_key") {
+      // Key was revoked or expired — trigger key rotation flow
+      await rotateApiKey();
+    } else if (error.code === "missing_api_key_scope") {
+      // Log a configuration error — this needs a human to fix
+      logger.error("API key missing required scope", { code: error.code });
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Request validation errors">
+    These errors are returned with HTTP `400` when the search request body fails validation. Fix the request body before retrying — retrying with the same body will produce the same error.
+
+    | Code | Description |
+    |------|-------------|
+    | `developer_query_required` | The `query` field is missing or empty. Provide a non-empty string. |
+    | `developer_num_users_required` | The `numUsers` field is missing or not a positive integer. Provide a valid positive integer. |
+    | `developer_num_users_limit_exceeded` | `numUsers` exceeds the maximum of 100. Reduce the value to 100 or below. |
+    | `developer_user_id_override_forbidden` | The request body includes a `userId` field, which is not permitted for developer API key requests. Remove the field. |
+    | `developer_search_replay_unsupported` | The request body includes a `searchId` field. Search replay is not supported for developer API key requests. Remove the field. |
+
+    Example handling:
+
+    ```javascript
+    const VALIDATION_ERRORS = new Set([
+      "developer_query_required",
+      "developer_num_users_required",
+      "developer_num_users_limit_exceeded",
+      "developer_user_id_override_forbidden",
+      "developer_search_replay_unsupported",
+    ]);
+
+    if (VALIDATION_ERRORS.has(error.code)) {
+      // Do not retry — fix the request body
+      throw new Error(`Invalid search request: ${error.code}`);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Organization and directory errors">
+    These errors relate to organization API key requirements, directory access, and directory search scoping.
+
+    | HTTP | Code | Description |
+    |------|------|-------------|
+    | 403 | `developer_api_key_organization_required` | The requested operation (such as directory or team search) requires an organization API key. Personal API keys are rejected for these scopes. Switch to an organization API key. |
+    | 403 | `developer_api_key_organization_forbidden` | The organization API key is not authorized for the requested organization search scope. Ensure the key belongs to the correct organization. |
+    | 403 | `developer_api_key_team_forbidden` | The organization API key is not authorized for the requested team search scope. |
+    | 404 | `search_directory_not_found` | One or more requested directories do not exist, have been archived, or are unavailable for search. Verify the `directoryId` values and check that the directories are active. |
+    | 400 | `search_directory_cross_org_scope_unsupported` | A multi-directory search (`"type": "directories"`) included directories from more than one organization. All directories in a single request must belong to the same organization. |
+    | 403 | `search_directory_access_api_key_forbidden` | The organization API key does not have a matching directory grant with `search` or `manage` permission. Add a grant for this key or use a key that already has access. |
+
+    <Note>
+      Directory access validation runs **before** credits are charged. If your key lacks a directory grant, no credits are consumed on the rejected request.
+    </Note>
+
+    Example handling:
+
+    ```javascript
+    if (error.code === "search_directory_not_found") {
+      // Directory was archived or deleted — check directory list
+      const directories = await listDirectories(organizationId);
+      logger.warn("Directory not found", { directoryId, directories });
+    } else if (error.code === "search_directory_access_api_key_forbidden") {
+      // Key lacks a grant — needs an admin to add one
+      logger.error("API key lacks directory grant", { code: error.code });
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Credit and rate limit errors">
+    These errors indicate you have hit a spending or throughput limit. They are separate from one another — a request can fail with `429` even when credits remain, and a request can fail with `402` even when the rate limit has capacity.
+
+    | HTTP | Code | Description |
+    |------|------|-------------|
+    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
+    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 search requests per 60 seconds per API key (120 profile reads per 60 seconds). Back off and retry after the window resets. |
+
+    Credit-insufficient response example:
+
+    ```json
+    {
+      "status": "failed",
+      "error": {
+        "code": "developer_api_credits_insufficient",
+        "message": "Developer API credits are insufficient for this request",
+        "requiredCredits": 2,
+        "remainingCredits": 0
+      }
+    }
+    ```
+
+    Example handling:
+
+    ```javascript
+    if (error.code === "developer_api_key_rate_limited") {
+      // Exponential backoff
+      await sleep(backoffMs);
+      return retry(request);
+    }
+
+    if (error.code === "developer_api_credits_insufficient") {
+      const { requiredCredits, remainingCredits } = error;
+      logger.warn("Insufficient credits", { requiredCredits, remainingCredits });
+      // Notify your team or pause non-essential requests
+    }
+    ```
+
+    <Tip>
+      Check the `X-Developer-API-Credits-Remaining` response header after each successful request to track your balance proactively. This lets you alert before you hit zero rather than discovering the problem at request time.
+    </Tip>
+  </Accordion>
+
+  <Accordion title="Idempotency errors">
+    These errors are returned with HTTP `409` when there is a conflict with a previously submitted `Idempotency-Key` header value.
+
+    | Code | Description |
+    |------|-------------|
+    | `developer_api_idempotency_key_conflict` | You reused an idempotency key with different request parameters. Each unique idempotency key is permanently bound to the parameters of the first request that used it. Generate a new key for this request. |
+    | `developer_api_idempotency_key_refunded` | The idempotency key belongs to a request that was refunded (for example, an empty-result search). You cannot reuse a refunded key for a new charge. Generate a new idempotency key and retry. |
+
+    Example handling:
+
+    ```javascript
+    if (error.code === "developer_api_idempotency_key_conflict") {
+      // Bug in your code — you're reusing a key with different params
+      throw new Error("Idempotency key reused with different parameters");
+    }
+
+    if (error.code === "developer_api_idempotency_key_refunded") {
+      // Safe to retry — just generate a fresh key
+      return retry({ ...request, idempotencyKey: crypto.randomUUID() });
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Not found">
+    | HTTP | Code | Description |
+    |------|------|-------------|
+    | 404 | `developer_profile_not_found` | The profile ID does not resolve to a public Orbit profile. The profile may have been removed, made private, or the ID may be incorrect. Profile reads that return this error are automatically refunded. |
+
+    Example handling:
+
+    ```javascript
+    if (error.code === "developer_profile_not_found") {
+      // No credits were consumed — safe to skip or log
+      logger.info("Profile not found, skipping", { profileId });
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## HTTP status code summary
+
+| Status | Codes |
+|--------|-------|
+| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `search_directory_cross_org_scope_unsupported` |
+| 401 | `missing_api_key` |
+| 402 | `developer_api_credits_insufficient` |
+| 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `developer_api_key_team_forbidden`, `search_directory_access_api_key_forbidden` |
+| 404 | `developer_profile_not_found`, `search_directory_not_found` |
+| 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded` |
+| 429 | `developer_api_key_rate_limited` |

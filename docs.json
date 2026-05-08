@@ -1,0 +1,87 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Orbit Search",
+  "theme": "luma",
+  "favicon": "https://media.brand.dev/233cf7ac-bb5c-4dfc-9d85-d2e8e48847d6.png",
+  "colors": {
+    "primary": "#33c7f5",
+    "light": "#12135a"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/orbit-search"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "authentication"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/search",
+              "concepts/directories",
+              "concepts/organizations",
+              "concepts/credits"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/first-search",
+              "guides/directory-setup",
+              "guides/key-rotation",
+              "guides/error-handling"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Search",
+            "pages": [
+              "api/search/smart-search",
+              "api/search/profile-read"
+            ]
+          },
+          {
+            "group": "API Keys",
+            "pages": [
+              "api/api-keys/create",
+              "api/api-keys/list",
+              "api/api-keys/revoke",
+              "api/api-keys/usage"
+            ]
+          },
+          {
+            "group": "Directories",
+            "pages": [
+              "api/directories/manage",
+              "api/directories/sources",
+              "api/directories/grants"
+            ]
+          },
+          {
+            "group": "Organizations",
+            "pages": [
+              "api/organizations/overview",
+              "api/organizations/teams"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

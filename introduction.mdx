@@ -1,0 +1,27 @@
+---
+title: "What is Orbit Search? People search API overview"
+description: "Orbit Search is a REST API for finding and reading public professional profiles using natural language queries. No search infrastructure to build or maintain."
+---
+
+Orbit Search gives you a REST API for finding and reading public people profiles using natural-language queries. Instead of building and maintaining your own search infrastructure, you send a plain-English query like "founders in SF" and get back a ranked list of matching profiles. You can then fetch a stable, structured profile record for any result — including name, location, headline, and verified status — and use that data however your product needs it.
+
+Access is controlled through API keys tied to your account or organization. Each key carries scopes that determine which endpoints it can call, and every API call is metered against a credits balance. Smart search costs 2 credits per successful request, and profile reads cost 1 credit each. Failed or empty requests are refunded automatically so you only pay for results.
+
+Orbit Search also supports directory-scoped search, letting organization API keys target a specific curated corpus of profiles rather than the full global index. This is useful for building search experiences within a defined network, team, or event directory.
+
+The API base URL for all requests is `https://api.orbitsearch.com`.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Run your first search and read a profile in under five minutes.
+  </Card>
+  <Card title="Authentication" icon="key" href="/authentication">
+    Create an API key, understand scopes, and learn the key lifecycle.
+  </Card>
+  <Card title="Search concepts" icon="magnifying-glass" href="/concepts/search">
+    Understand smart search, query rules, scopes, and idempotency.
+  </Card>
+  <Card title="Credits" icon="coins" href="/concepts/credits">
+    Learn how credits are charged, refunded, and tracked per request.
+  </Card>
+</CardGroup>

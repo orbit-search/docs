@@ -1,0 +1,229 @@
+---
+title: "Run your first search and read a profile with Orbit"
+sidebarTitle: "First Search"
+description: "Go from zero to receiving profile results with Orbit Search — create an API key, run a smart search, and fetch a full profile record in minutes."
+---
+
+The Orbit Search API lets you query a global index of public professional profiles using natural-language queries. This guide walks you through every step: creating an API key, running your first search request, reading the response, and fetching a complete profile for any result you get back.
+
+## Prerequisites
+
+You need an active Orbit account. All requests require a `Bearer` token in the `Authorization` header. The examples below use `$API_BASE` as a placeholder for the API base URL you received when signing up.
+
+## Steps
+
+<Steps>
+  <Step title="Create an API key">
+    Generate a personal API key with the `search:read` and `profile:read` scopes. You must use a normal user session token (`$USER_ACCESS_TOKEN`) for this call — developer API keys cannot create other keys.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/api-keys" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "my first key",
+        "scopes": ["search:read", "profile:read"],
+        "expires_at": "2026-12-31T23:59:59.000Z"
+      }'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(`${API_BASE}/v2/api-keys`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "my first key",
+        scopes: ["search:read", "profile:read"],
+        expires_at: "2026-12-31T23:59:59.000Z",
+      }),
+    });
+    const data = await response.json();
+    ```
+
+    </CodeGroup>
+
+    The response includes a `payload.key` field containing your raw API key:
+
+    ```json
+    {
+      "status": "success",
+      "payload": {
+        "id": "uuid",
+        "key": "sk_orb_a0186REDACTED55fd",
+        "prefix": "sk_orb_a0186",
+        "suffix": "55fd",
+        "display_key": "sk_orb_a0186...55fd",
+        "name": "my first key",
+        "scopes": ["search:read", "profile:read"],
+        "created_at": "2026-04-29T00:00:00.000Z",
+        "expires_at": "2026-12-31T23:59:59.000Z"
+      }
+    }
+    ```
+
+    <Warning>
+      The raw key in `payload.key` is shown **only once**. Copy it to a secure location (such as an environment variable or secrets manager) before doing anything else. Future list responses only return metadata like `display_key`, not the raw key.
+    </Warning>
+  </Step>
+
+  <Step title="Run a global search">
+    Send a `POST` request to the smart search endpoint. The `query` and `numUsers` fields are both required.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+      -H "Authorization: Bearer $ORBIT_API_KEY" \
+      -H "Idempotency-Key: $(uuidgen)" \
+      -H "Content-Type: application/json" \
+      -d '{"query": "founders in sf", "numUsers": 10}'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      `${API_BASE}/v2/social/profiles/searches/smart`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ORBIT_API_KEY}`,
+          "Idempotency-Key": crypto.randomUUID(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: "founders in sf", numUsers: 10 }),
+      }
+    );
+    const data = await response.json();
+    ```
+
+    </CodeGroup>
+
+    <Tip>
+      Always pass an `Idempotency-Key` header — a unique string such as a UUID — on every search request. If your request times out and you retry, the server uses this key to avoid double-charging your credits. Without it, the server falls back to a per-request ID that cannot deduplicate retries across separate HTTP connections.
+    </Tip>
+  </Step>
+
+  <Step title="Interpret the search response">
+    A successful search returns a `searchId` and a `payload.users` array. The array may be empty if the index found no matching profiles for your query.
+
+    ```json
+    {
+      "status": "success",
+      "searchId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "payload": {
+        "users": [
+          {
+            "userId": "usr_a1b2c3d4e5f6",
+            "displayName": "Ada Lovelace",
+            "headline": "Founder at Example Co"
+          }
+        ]
+      }
+    }
+    ```
+
+    Check the `X-Developer-API-Credits-Remaining` response header to see how many credits you have left after the request. Each successful search costs 2 credits by default. If the search returns no users, the credits are automatically refunded and the header will reflect your full balance.
+
+    Each object in `payload.users` contains a `userId` field. Use this to fetch a full profile in the next step.
+  </Step>
+
+  <Step title="Fetch a full profile">
+    Pass the `userId` from any search result to `GET /v2/developer/profiles/:id` to retrieve the complete public profile DTO.
+
+    <CodeGroup>
+
+    ```bash curl
+    # Extract userId from the first search result and fetch its profile
+    SEARCH_RESPONSE=$(
+      curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+        -H "Authorization: Bearer $ORBIT_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{"query": "founders in sf", "numUsers": 10}'
+    )
+
+    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+
+    curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
+      -H "Authorization: Bearer $ORBIT_API_KEY"
+    ```
+
+    ```javascript JavaScript
+    const searchRes = await fetch(
+      `${API_BASE}/v2/social/profiles/searches/smart`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ORBIT_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query: "founders in sf", numUsers: 10 }),
+      }
+    );
+    const searchData = await searchRes.json();
+    const profileId = searchData.payload.users[0]?.userId;
+
+    const profileRes = await fetch(
+      `${API_BASE}/v2/developer/profiles/${profileId}`,
+      {
+        headers: { Authorization: `Bearer ${ORBIT_API_KEY}` },
+      }
+    );
+    const profile = await profileRes.json();
+    ```
+
+    </CodeGroup>
+
+    A successful profile read returns a stable public profile DTO:
+
+    ```json
+    {
+      "status": "success",
+      "payload": {
+        "id": "usr_a1b2c3d4e5f6",
+        "orbitId": "orbit-profile-id",
+        "displayName": "Ada Lovelace",
+        "avatarUrl": "https://...",
+        "profileUrl": "https://orbitsearch.com/ada",
+        "verified": true,
+        "location": {
+          "city": "San Francisco, CA, US"
+        },
+        "headline": {
+          "jobTitle": "Founder",
+          "companyName": "Example Co",
+          "schoolName": "Example University"
+        },
+        "sections": {
+          "basic": {
+            "school": "Example University",
+            "location": "San Francisco"
+          },
+          "personalLife": null,
+          "jobs": null,
+          "education": null,
+          "passions": null,
+          "worldview": null,
+          "accomplishments": null,
+          "controversies": null,
+          "bestQualities": null,
+          "netWorth": null,
+          "portfolio": null,
+          "families": null
+        }
+      }
+    }
+    ```
+
+    The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Each profile read costs 1 credit by default; failed or not-found reads are refunded automatically.
+  </Step>
+</Steps>
+
+## Next steps
+
+- Scope your searches to a custom people corpus using [Search Directories](/guides/directory-setup).
+- Learn how to safely rotate your API key in [Key Rotation](/guides/key-rotation).
+- See every error code your application should handle in [Error Handling](/guides/error-handling).

@@ -1,0 +1,205 @@
+---
+title: "Set up a Search Directory for custom people data"
+sidebarTitle: "Directory Setup"
+description: "Create an Orbit Search Directory, upload a CSV of contacts, verify the source is ready, and run a scoped search against your own people data."
+---
+
+Search Directories let you build a private, searchable corpus of people data inside your organization. Instead of querying the global Orbit index, you query a corpus you control — populated from CSV uploads, connection imports, or other sources. This guide walks you through creating a directory, uploading your first CSV, checking that the data is indexed, and running a scoped search against it.
+
+<Note>
+  Directory operations require an **organization API key** — personal API keys are rejected. Your key must belong to the directory's organization and have an organization, team, or API-key grant with `search` or `manage` permission. Use your user session token (`$USER_ACCESS_TOKEN`) for directory management calls (create, upload, check status), and your organization API key (`$ORG_API_KEY`) for search calls.
+</Note>
+
+## Steps
+
+<Steps>
+  <Step title="Create a directory">
+    Create a new directory inside your organization. Replace `$ORGANIZATION_ID` with your organization's UUID.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{"name": "My Contacts"}'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: "My Contacts" }),
+      }
+    );
+    const data = await response.json();
+    const directoryId = data.payload.id;
+    ```
+
+    </CodeGroup>
+
+    Store the `directoryId` from the response — you need it for all subsequent calls.
+  </Step>
+
+  <Step title="Upload a CSV">
+    Upload a CSV file to create a new source inside the directory. Send the file as a multipart form with the field name `file`. You can optionally include an `idempotency_key` to make the upload safe to retry.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST \
+      "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -F "file=@contacts.csv" \
+      -F "idempotency_key=upload-contacts-2026-05-05"
+    ```
+
+    ```javascript JavaScript
+    const formData = new FormData();
+    formData.append("file", csvFileBlob, "contacts.csv");
+    formData.append("idempotency_key", "upload-contacts-2026-05-05");
+
+    const response = await fetch(
+      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/csv-upload`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
+        body: formData,
+      }
+    );
+    const data = await response.json();
+    const sourceId = data.payload.source_id;
+    ```
+
+    </CodeGroup>
+
+    The response includes a `source_id`, row counts, and an initial `source_status`. Store the `sourceId` — you need it to poll for readiness.
+
+    <Info>
+      Uploads are **incremental**. Each CSV you upload creates a new source inside the directory rather than replacing existing data. If you upload three CSVs, all three contribute to the same searchable corpus. To safely re-upload the same file without creating a duplicate source, pass the same `idempotency_key` — the server will return the existing source instead of creating a new one.
+    </Info>
+  </Step>
+
+  <Step title="Check source status and wait for readiness">
+    Large uploads are processed asynchronously. Poll the source status endpoint until `source_status` indicates the source is ready before running a search.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/$SOURCE_ID/status" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/${SOURCE_ID}/status`,
+      {
+        headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
+      }
+    );
+    const data = await response.json();
+    console.log(data.payload.source_status);
+    ```
+
+    </CodeGroup>
+
+    Example status response:
+
+    ```json
+    {
+      "status": "success",
+      "payload": {
+        "source_id": "source-uuid",
+        "directory_id": "directory-uuid",
+        "source_status": "completed"
+      }
+    }
+    ```
+
+    You can also check overall directory readiness — useful when you have multiple sources and want to know whether the full corpus is ready to search:
+
+    <CodeGroup>
+
+    ```bash curl
+    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/readiness" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/readiness`,
+      {
+        headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
+      }
+    );
+    const data = await response.json();
+    ```
+
+    </CodeGroup>
+
+    Wait until the directory is ready before proceeding to the search step. Searching a directory with unfinished sources may return incomplete results.
+  </Step>
+
+  <Step title="Search your directory">
+    Run a scoped smart search against your directory by setting `searchScope.type` to `"directory"` and providing the `directoryId`. Use your **organization API key** for this request.
+
+    <CodeGroup>
+
+    ```bash curl
+    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+      -H "Authorization: Bearer $ORG_API_KEY" \
+      -H "Idempotency-Key: $(uuidgen)" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "query": "engineers",
+        "numUsers": 10,
+        "searchScope": {
+          "type": "directory",
+          "directoryId": "DIRECTORY_UUID"
+        }
+      }'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch(
+      `${API_BASE}/v2/social/profiles/searches/smart`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ORG_API_KEY}`,
+          "Idempotency-Key": crypto.randomUUID(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: "engineers",
+          numUsers: 10,
+          searchScope: {
+            type: "directory",
+            directoryId: "DIRECTORY_UUID",
+          },
+        }),
+      }
+    );
+    const data = await response.json();
+    ```
+
+    </CodeGroup>
+
+    The response shape is identical to a global search. Results are limited to the people in your directory. Profiles that resolve to an Orbit account return full profile data; CSV rows that do not resolve return a directory fallback card with the fields from your upload.
+
+    <Warning>
+      Multi-directory search is supported — you can pass `"type": "directories"` with a `directoryIds` array — but all directories must belong to the **same organization**. Cross-organization multi-directory search is not supported and returns a `search_directory_cross_org_scope_unsupported` error.
+    </Warning>
+  </Step>
+</Steps>
+
+## Next steps
+
+- Learn how to manage access to directories using grants by calling `POST /v2/organizations/:organizationId/directories/:directoryId/grants`.
+- See all directory-related error codes in [Error Handling](/guides/error-handling).
+- Rotate the organization API key you're using for directory search by following [Key Rotation](/guides/key-rotation).

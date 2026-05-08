@@ -1,0 +1,262 @@
+---
+title: "GET /v2/developer/profiles/:id — fetch a profile"
+sidebarTitle: "Profile Read"
+description: "Fetch the public profile DTO for a single Orbit user by ID. Use profile IDs returned from smart search results to retrieve structured profile data."
+---
+
+The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `userId` field in smart search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
+
+## Authentication
+
+Include your developer API key in every request. The key must have the `profile:read` scope.
+
+```http
+Authorization: Bearer sk_orb_...
+```
+
+## Request
+
+```http
+GET /v2/developer/profiles/:id
+```
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The profile ID to fetch. This is the `userId` value returned in the `payload.users` array from a [Smart Search](/api/search/smart-search) response.
+</ParamField>
+
+## Response
+
+### 200 Success
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "usr_a1b2c3d4e5f6",
+    "orbitId": "orbit-profile-id",
+    "displayName": "Ada Lovelace",
+    "avatarUrl": "https://...",
+    "profileUrl": "https://orbitsearch.com/ada",
+    "verified": true,
+    "location": {
+      "city": "San Francisco, CA, US"
+    },
+    "headline": {
+      "jobTitle": "Founder",
+      "companyName": "Example Co",
+      "schoolName": "Example University"
+    },
+    "sections": {
+      "basic": { "school": "Example University", "location": "San Francisco" },
+      "personalLife": null,
+      "jobs": null,
+      "education": null,
+      "passions": null,
+      "worldview": null,
+      "accomplishments": null,
+      "controversies": null,
+      "bestQualities": null,
+      "netWorth": null,
+      "portfolio": null,
+      "families": null
+    }
+  }
+}
+```
+
+<ResponseField name="status" type="string" required>
+  Always `"success"` for a 200 response.
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="payload.id" type="string" required>
+      The profile ID that was requested. This is the same value you passed in the `:id` path parameter.
+    </ResponseField>
+    <ResponseField name="payload.orbitId" type="string" required>
+      The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces.
+    </ResponseField>
+    <ResponseField name="payload.displayName" type="string">
+      The user's public display name.
+    </ResponseField>
+    <ResponseField name="payload.avatarUrl" type="string">
+      URL of the user's public avatar image. May be `null` if the user has not set a profile photo.
+    </ResponseField>
+    <ResponseField name="payload.profileUrl" type="string">
+      The canonical public URL of the user's Orbit profile page.
+    </ResponseField>
+    <ResponseField name="payload.verified" type="boolean">
+      Whether the profile has been verified by Orbit.
+    </ResponseField>
+    <ResponseField name="payload.location" type="object">
+      The user's public location information.
+
+      <Expandable title="properties">
+        <ResponseField name="payload.location.city" type="string">
+          City, region, and country string as entered by the user. Example: `"San Francisco, CA, US"`.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="payload.headline" type="object">
+      The user's professional headline, drawn from their current role or education.
+
+      <Expandable title="properties">
+        <ResponseField name="payload.headline.jobTitle" type="string">
+          The user's current job title. May be `null`.
+        </ResponseField>
+        <ResponseField name="payload.headline.companyName" type="string">
+          The user's current employer. May be `null`.
+        </ResponseField>
+        <ResponseField name="payload.headline.schoolName" type="string">
+          The user's most recent school, shown when no job title is present. May be `null`.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    <ResponseField name="payload.sections" type="object">
+      Structured profile sections. Each section is either an object with section-specific fields or `null` when the user has not filled it out.
+
+      <Expandable title="properties">
+        <ResponseField name="payload.sections.basic" type="object | null">
+          Basic profile information including school and location as entered by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.personalLife" type="object | null">
+          Personal life information shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.jobs" type="object | null">
+          Work history shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.education" type="object | null">
+          Education history shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.passions" type="object | null">
+          Interests and passions shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.worldview" type="object | null">
+          Worldview or values shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.accomplishments" type="object | null">
+          Notable accomplishments shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.controversies" type="object | null">
+          Public controversies associated with the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.bestQualities" type="object | null">
+          Best qualities highlighted by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.netWorth" type="object | null">
+          Net worth information where publicly available.
+        </ResponseField>
+        <ResponseField name="payload.sections.portfolio" type="object | null">
+          Portfolio or work samples shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.families" type="object | null">
+          Family information shared by the user.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, full enrichment records, internal moderation or admin metadata, raw profile-owner widgets, or profile-owner-only progress fields.
+</Note>
+
+## Credits
+
+Each successful profile read costs **1 credit**. Reads that return `developer_profile_not_found` or fail for other reasons are automatically refunded — you are only charged for profiles that are successfully returned.
+
+## Rate limits
+
+**120 requests per 60 seconds** per API key. Rate limits are tracked per key, not per IP address. A `429` response does not consume credits.
+
+## Error responses
+
+| Status | Code | Description |
+|---|---|---|
+| `401` | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided |
+| `402` | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of a profile read |
+| `403` | `invalid_api_key` | The key is malformed, revoked, expired, or unknown |
+| `403` | `missing_api_key_scope` | The key does not have the `profile:read` scope |
+| `404` | `developer_profile_not_found` | The profile ID does not resolve to a public Orbit profile. The read is refunded. |
+| `429` | `developer_api_key_rate_limited` | You have exceeded 120 requests per 60 seconds for this API key |
+
+## Code example
+
+The example below shows the full search-to-profile-read flow: run a smart search, extract the first profile ID from the response, then fetch the full profile.
+
+<CodeGroup>
+
+```bash curl
+SEARCH_RESPONSE=$(
+  curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+    -H "Authorization: Bearer sk_orb_REDACTED" \
+    -H "Content-Type: application/json" \
+    -d '{"query":"founders in sf","numUsers":10}'
+)
+
+PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+
+curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
+  -H "Authorization: Bearer sk_orb_REDACTED"
+```
+
+```javascript JavaScript
+// Step 1: run a smart search
+const searchResponse = await fetch(
+  `${API_BASE}/v2/social/profiles/searches/smart`,
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer sk_orb_REDACTED",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: "founders in sf", numUsers: 10 }),
+  }
+);
+
+const searchData = await searchResponse.json();
+const profileId = searchData.payload.users[0].userId;
+
+// Step 2: fetch the full profile
+const profileResponse = await fetch(
+  `${API_BASE}/v2/developer/profiles/${profileId}`,
+  {
+    headers: {
+      "Authorization": "Bearer sk_orb_REDACTED",
+    },
+  }
+);
+
+const profile = await profileResponse.json();
+console.log(profile.payload.displayName);
+```
+
+```python Python
+import requests
+
+# Step 1: run a smart search
+search_response = requests.post(
+    f"{API_BASE}/v2/social/profiles/searches/smart",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Content-Type": "application/json",
+    },
+    json={"query": "founders in sf", "numUsers": 10},
+)
+
+search_data = search_response.json()
+profile_id = search_data["payload"]["users"][0]["userId"]
+
+# Step 2: fetch the full profile
+profile_response = requests.get(
+    f"{API_BASE}/v2/developer/profiles/{profile_id}",
+    headers={"Authorization": "Bearer sk_orb_REDACTED"},
+)
+
+profile = profile_response.json()
+print(profile["payload"]["displayName"])
+```
+
+</CodeGroup>

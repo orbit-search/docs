@@ -1,0 +1,91 @@
+---
+title: "Organizations and teams in Orbit Search explained"
+description: "Organizations own your directories, sources, and API keys. Teams group members for access control. Learn when to use org keys vs. personal keys."
+---
+
+Organizations are the top-level ownership boundary in Orbit Search. Every directory, source, directory person, and access grant belongs to an organization. When you issue an organization API key, it is scoped to that organization — giving it the ability to search organization-owned directories that personal keys cannot reach.
+
+## Organization types
+
+There are two organization types:
+
+- **`workspace`** — a shared organization you create for your team or product. Workspace organizations own directories, manage teams, and issue API keys that your application uses to search private corpora.
+- **`personal`** — every Orbit user automatically gets a personal organization. Your personal organization owns your Personal Connections directory and is the subject against which personal API key credits are metered.
+
+You do not need to create a personal organization; Orbit creates it for you on sign-in.
+
+## Teams
+
+Teams are logical groups within a workspace organization. You use teams for access control: when you grant a team access to a directory, all API keys scoped to that team can search it. Teams do not own directories — organizations do. Teams are an access grouping over the directories an organization owns.
+
+A team-scoped search request uses the `team_connections` scope, which resolves the team to its granted directories and then runs normal directory search:
+
+```json
+{
+  "query": "founders in sf",
+  "numUsers": 10,
+  "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
+}
+```
+
+## Organization API keys
+
+Organization API keys are issued at the organization level using a normal user access token. They are the right key type when your application needs to search private directories.
+
+### Creating an organization key
+
+```bash
+curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"customer production","scopes":["search:read","profile:read"],"environment":"production"}'
+```
+
+### Creating a team-scoped organization key
+
+You can further restrict an organization key to a specific team. The key can only search directories granted to that team:
+
+```bash
+curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"team search","scopes":["search:read"],"team_ids":["TEAM_UUID"]}'
+```
+
+### What organization keys can and cannot do
+
+| Capability | Organization API key |
+|---|---|
+| Search global profiles (`global` scope) | Yes |
+| Search organization directories (`directory`, `directories`, `team_connections` scopes) | Yes, with a matching grant |
+| Create, list, revoke, or delete API keys | No — requires a user access token |
+| Call the API key usage endpoint | No — requires a user access token |
+
+Credits for organization API key requests are metered against the organization subject, not the key creator's personal account. This means usage, monthly grants, refunds, and admin adjustments are all tracked at the organization level.
+
+<Tip>
+Use personal API keys during development and exploration — they are simpler to create and scope searches to the global public corpus. Switch to organization API keys when your application needs to search private directories or when you want usage metered against an organization rather than an individual user.
+</Tip>
+
+## Credit accounting by key type
+
+The subject that gets charged depends on the key type:
+
+- **Personal API key** → credits charged to the user's personal subject
+- **Organization API key** → credits charged to the organization subject
+
+This separation means your organization's directory search usage does not draw from your personal monthly credit grant.
+
+## Key lifecycle
+
+Both personal and organization keys support the same lifecycle operations, all of which require a user access token:
+
+```http
+POST   /v2/api-keys                   (personal)
+POST   /v2/organizations/:id/api-keys (organization)
+GET    /v2/api-keys
+PUT    /v2/api-keys/:id/revoke
+DELETE /v2/api-keys/:id
+```
+
+The raw key value is returned once at creation in `payload.key`. Store it immediately — subsequent list responses only include metadata such as `id`, `prefix`, `suffix`, `display_key`, `name`, `scopes`, and status fields. Use `display_key` (for example `sk_orb_a0186...55fd`) to identify keys in your UI or support workflows rather than storing or displaying the raw key.

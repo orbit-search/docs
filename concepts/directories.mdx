@@ -1,0 +1,154 @@
+---
+title: "Search directories: build a searchable people corpus"
+description: "Directories are private, organization-owned collections of people you can search with the same natural language API as global Orbit Search."
+---
+
+A search directory is a private corpus of people that your organization owns and controls. Instead of searching all public Orbit profiles, you upload your own contact data — CSV files, imported connection lists — and search within that corpus. The same natural language query engine that powers global search runs against your directory, so the developer experience is identical.
+
+## Data model
+
+Directories follow a four-level hierarchy:
+
+```text
+organization → directory → sources → searchable people
+```
+
+- **Organization** — owns all directories, sources, people, and access grants. See [Organizations](/concepts/organizations) for how organizations work.
+- **Directory** — an isolated searchable corpus inside one organization. Each directory has a `standard` or `connections` type.
+- **Source** — a feed into a directory. Sources materialize into directory people when processed.
+- **Directory person** — the resolved, searchable record produced from one source row.
+
+Multiple sources can contribute to the same directory. When you add more data to a directory, you create an additional source rather than replacing the directory. Search reads the aggregate corpus across all completed sources.
+
+## Directory types
+
+There are two directory types:
+
+- **`standard`** — a general-purpose directory you create and populate with uploaded sources.
+- **`connections`** — a special directory used for personal connections. Every Orbit user gets one automatically (see [Personal connections](#personal-connections) below).
+
+## Source types
+
+Sources are the feeds that populate a directory with searchable people.
+
+<AccordionGroup>
+  <Accordion title="CSV upload">
+    Upload a CSV file to create a `csv_upload` source in a directory. The API parses the file, validates rows, materializes accepted rows into directory people, and returns row counts, validation failures, and warnings synchronously. You can upload additional CSVs into the same directory at any time — each upload becomes its own source, and all sources contribute to the searchable corpus.
+
+    Uploads are idempotent when you provide an `idempotency_key`. Reusing the same key for the same upload skips duplicate processing.
+
+    ```bash
+    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -F "file=@contacts.csv" \
+      -F "idempotency_key=upload-2024-01"
+    ```
+
+    Check source status and readiness through the source endpoints:
+
+    ```http
+    GET /v2/organizations/:organizationId/directories/:directoryId/sources/:sourceId/status
+    GET /v2/organizations/:organizationId/directories/:directoryId/readiness
+    ```
+  </Accordion>
+  <Accordion title="Connection import">
+    A `connection_import` source is created when a user imports their professional connections. Connection imports write to the user's Personal Connections directory through a stable source that is refreshed when new connections are uploaded.
+
+    Start an import:
+
+    ```http
+    POST /v2/social/connections/import
+    ```
+
+    Check import status:
+
+    ```http
+    GET /v2/social/connections/imports/:jobId
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Personal connections
+
+Every Orbit user automatically gets a personal organization with a `connections`-type directory named **Personal Connections**. When a user imports their professional connections, those connections materialize into this directory through a stable `connection_import` source.
+
+You can search a user's Personal Connections directory using the `directory` scope with the directory's ID, provided you have an organization API key with the appropriate grant.
+
+## Directory lifecycle
+
+Create and manage directories using your normal user access token:
+
+```http
+POST   /v2/organizations/:organizationId/directories
+GET    /v2/organizations/:organizationId/directories
+GET    /v2/organizations/:organizationId/directories/:directoryId
+PATCH  /v2/organizations/:organizationId/directories/:directoryId
+POST   /v2/organizations/:organizationId/directories/:directoryId/archive
+DELETE /v2/organizations/:organizationId/directories/:directoryId
+```
+
+Archived directories are rejected from search. You cannot search a directory until at least one source has finished processing.
+
+## Access permissions
+
+Directory access is controlled by grants. Each grant assigns a permission to a principal.
+
+### Permissions
+
+| Permission | What it allows |
+|---|---|
+| `search` | Run directory-scoped searches against this directory |
+| `upload` | Upload source data (CSV files) into this directory |
+| `manage` | Manage directory metadata, sources, grants, and search |
+
+### Grant principals
+
+| Principal | Who gets access |
+|---|---|
+| `organization` | All members and API keys in the organization |
+| `team` | Users and API keys associated with a specific team |
+| `user` | One specific organization member |
+| `api_key` | One specific organization API key |
+
+Manage grants with these endpoints:
+
+```http
+GET    /v2/organizations/:organizationId/directories/:directoryId/grants
+POST   /v2/organizations/:organizationId/directories/:directoryId/grants
+DELETE /v2/organizations/:organizationId/directories/:directoryId/grants/:grantId
+```
+
+<Warning>
+Only organization API keys can search directories. Personal API keys are rejected for all directory-scoped search — even if the directory belongs to your personal organization. The key must also belong to the same organization as the directory and must have a matching grant with `search` or `manage` permission.
+</Warning>
+
+## Searching a directory
+
+Use the `directory` or `directories` scope on the smart search endpoint. Directory access is validated before credits are charged.
+
+Single directory:
+
+```json
+{
+  "query": "festival programmers",
+  "numUsers": 10,
+  "searchScope": { "type": "directory", "directoryId": "DIRECTORY_UUID" }
+}
+```
+
+Multiple directories from the same organization:
+
+```json
+{
+  "query": "festival programmers",
+  "numUsers": 10,
+  "searchScope": {
+    "type": "directories",
+    "directoryIds": ["DIRECTORY_UUID_A", "DIRECTORY_UUID_B"]
+  }
+}
+```
+
+A multi-directory search must stay within a single organization. Cross-organization directory search is not supported and returns `search_directory_cross_org_scope_unsupported`.
+
+For a full walkthrough of setting up a directory and running your first search, see the [Directory setup guide](/guides/directory-setup).

@@ -1,0 +1,158 @@
+---
+title: "Authenticate your requests to the Orbit Search API"
+description: "Orbit Search uses bearer token authentication with scoped API keys. Learn how to create, use, rotate, and revoke developer API keys."
+---
+
+Every request to the Orbit Search developer API must include an `Authorization` header with a bearer token. You generate that token by creating a developer API key, which is scoped to the specific operations your integration needs. Keys are rate-limited, metered against your credit balance, and the raw key value is only visible once at creation time.
+
+## Key types
+
+Orbit Search supports two kinds of developer API keys:
+
+**Personal keys** are tied to your user account. Credits are metered against your personal usage, and personal keys can only search the global Orbit index — they cannot target team or directory corpora.
+
+**Organization keys** are tied to an organization rather than an individual. Credits are metered against the organization's credit balance. Organization keys can search team connections and named directories in addition to the global index, making them the right choice for building product integrations at scale.
+
+## Scopes
+
+When you create a key, you declare which operations it is allowed to perform:
+
+| Scope | What it grants |
+|---|---|
+| `search:read` | Call the smart search endpoint (`POST /v2/social/profiles/searches/smart`) |
+| `profile:read` | Fetch a profile by ID (`GET /v2/developer/profiles/:id`) |
+
+A key without `search:read` will receive a `403 missing_api_key_scope` error if it attempts a search. Request only the scopes your integration actually uses.
+
+## Creating a key
+
+### Personal key
+
+```bash
+curl -X POST "https://api.orbitsearch.com/v2/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"production search","scopes":["search:read","profile:read"]}'
+```
+
+### Organization key
+
+```bash
+curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"customer production","scopes":["search:read","profile:read"],"environment":"production"}'
+```
+
+### Creation response
+
+Both endpoints return the same response shape:
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "uuid",
+    "key": "sk_orb_a0186REDACTED55fd",
+    "prefix": "sk_orb_a0186",
+    "suffix": "55fd",
+    "display_key": "sk_orb_a0186...55fd",
+    "name": "production search",
+    "scopes": ["search:read", "profile:read"],
+    "created_at": "2026-04-29T00:00:00.000Z",
+    "expires_at": "2026-12-31T23:59:59.000Z"
+  }
+}
+```
+
+<Warning>
+  The raw key in `payload.key` is shown exactly once at creation time. The server stores it hashed and cannot recover it. Copy `payload.key` to a secrets manager or environment variable before you close this response.
+</Warning>
+
+<Note>
+  After creation, use `display_key` (e.g. `sk_orb_a0186...55fd`) to identify a key in your UI, support tickets, or audit logs. It combines the non-secret prefix and suffix and is safe to display without exposing the raw key.
+</Note>
+
+## Making authenticated requests
+
+Include the raw key as a bearer token on every API call:
+
+```bash
+curl -X POST "https://api.orbitsearch.com/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
+```
+
+The key format is always `sk_orb_<prefix>...<suffix>`. Do not use the legacy `api-key` header — it is not supported for developer API traffic.
+
+## Key lifecycle
+
+The recommended lifecycle for a developer API key is: create → use → rotate → revoke.
+
+<Steps>
+  <Step title="Create">
+    Create a new key and immediately store the raw `payload.key` value.
+  </Step>
+  <Step title="Use">
+    Pass the key as `Authorization: Bearer sk_orb_...` on every API request.
+  </Step>
+  <Step title="Rotate">
+    When you need to replace a key, create a new one first, then migrate callers one by one. Verify traffic on the new key by checking that its `last_used_at` timestamp updates in `GET /v2/api-keys`.
+  </Step>
+  <Step title="Revoke">
+    Once all callers have moved to the new key, revoke the old one:
+
+    ```bash
+    curl -X PUT "https://api.orbitsearch.com/v2/api-keys/$KEY_ID/revoke" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    Revoked keys are rejected by authentication but remain visible in list responses as inactive metadata (`is_active: false`). This preserves an audit trail for security and support reviews.
+  </Step>
+</Steps>
+
+<Tip>
+  Prefer `PUT /v2/api-keys/:id/revoke` over `DELETE /v2/api-keys/:id` when rotating. Revoked keys remain as auditable metadata; deleted keys are removed entirely. Both operations are logged to the security audit table.
+</Tip>
+
+## Listing and inspecting keys
+
+To see all your keys and their current status:
+
+```bash
+curl "https://api.orbitsearch.com/v2/api-keys" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+Each entry in the response includes `id`, `display_key`, `name`, `scopes`, `created_at`, `last_used_at`, `expires_at`, `is_active`, and `is_expired`. The raw key is never returned after creation.
+
+## Key expiration
+
+You can set an optional `expires_at` timestamp when creating a key. Expired keys are rejected by authentication and appear as `is_expired: true` with `is_active: false` in list responses. If you omit `expires_at`, the key does not expire unless your account has a default TTL configured.
+
+## Error reference
+
+When authentication fails, the API returns a machine-readable error code in the response body:
+
+| HTTP status | Error code | Cause |
+|---|---|---|
+| `401` | `missing_api_key` | Request reached a developer-key endpoint with no `Authorization: Bearer sk_orb_...` header. |
+| `403` | `invalid_api_key` | Key is malformed, revoked, expired, or not recognized. |
+| `403` | `missing_api_key_scope` | Key is valid but does not include the scope required by the endpoint. |
+
+Example error response:
+
+```json
+{
+  "status": "failed",
+  "error": {
+    "code": "missing_api_key_scope",
+    "message": "This key does not have the required scope for this endpoint."
+  }
+}
+```
+
+<Note>
+  Developer API keys cannot call key management or usage endpoints (`POST /v2/api-keys`, `GET /v2/api-keys`, `PUT /v2/api-keys/:id/revoke`, etc.). Those endpoints require a normal user access token and return `api_key_management_requires_user_auth` if called with a developer key.
+</Note>

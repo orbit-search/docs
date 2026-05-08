@@ -1,0 +1,273 @@
+---
+title: "POST /v2/social/profiles/searches/smart — search"
+sidebarTitle: "Smart Search"
+description: "Run a natural language smart search against Orbit's people index. Returns ranked profiles. Supports global, team, and directory scopes. Costs 2 credits per result."
+---
+
+The smart search endpoint accepts a plain English query and returns a ranked list of matching profiles. Orbit resolves your query through structured, semantic, and agentic search modes automatically — you don't need to specify a mode. Each successful request costs credits; requests that return no results or fail validation are refunded.
+
+## Authentication
+
+Include your developer API key in every request. The key must have the `search:read` scope.
+
+```http
+Authorization: Bearer sk_orb_...
+```
+
+## Request
+
+```http
+POST /v2/social/profiles/searches/smart
+```
+
+### Headers
+
+| Header | Required | Description |
+|---|---|---|
+| `Authorization` | Yes | `Bearer sk_orb_...` with `search:read` scope |
+| `Content-Type` | Yes | `application/json` |
+| `Idempotency-Key` | No | A UUID or client-generated key for safe retries |
+
+<Tip>
+Always send an `Idempotency-Key` header. If you omit it, the server uses the request ID, which prevents duplicate charges within a single request but cannot deduplicate a client-side retry. Use a fresh idempotency key for every new request attempt.
+</Tip>
+
+### Body parameters
+
+<ParamField body="query" type="string" required>
+  Natural language description of the people you're searching for. Cannot be empty.
+
+  Example: `"founders in sf"`, `"machine learning engineers at Series B startups"`
+</ParamField>
+
+<ParamField body="numUsers" type="number" required>
+  Number of results to return. Must be a positive integer. Maximum value is `100`.
+</ParamField>
+
+<ParamField body="searchScope" type="object">
+  Scope of the search. Omit this field or set `{"type":"global"}` to search the full Orbit index. Use a scoped value to restrict results to a team's connections or one or more directories.
+
+  <Expandable title="properties">
+    <ParamField body="searchScope.type" type="string" required>
+      One of: `"global"`, `"team_connections"`, `"directory"`, `"directories"`
+    </ParamField>
+    <ParamField body="searchScope.teamId" type="string">
+      Required when `type` is `"team_connections"`. The UUID of the team whose directory grants are searched.
+    </ParamField>
+    <ParamField body="searchScope.directoryId" type="string">
+      Required when `type` is `"directory"`. The UUID of a single directory to search.
+    </ParamField>
+    <ParamField body="searchScope.directoryIds" type="string[]">
+      Required when `type` is `"directories"`. An array of directory UUIDs to search. All directories must belong to the same organization.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<Note>
+  - `userId` is not accepted in the request body.
+  - `searchId` (search replay) is not accepted in the request body.
+  - **Personal API keys can only use global search.** To use `team_connections` or any directory scope, you must use an organization API key.
+</Note>
+
+### Search scope examples
+
+<Tabs>
+  <Tab title="Global">
+    Omit `searchScope` entirely, or pass `{"type":"global"}`, to search the full Orbit index.
+
+    ```json
+    {
+      "query": "founders in sf",
+      "numUsers": 10
+    }
+    ```
+  </Tab>
+  <Tab title="Team connections">
+    Search across all directories granted to a specific team. Requires an organization API key.
+
+    ```json
+    {
+      "query": "founders in sf",
+      "numUsers": 10,
+      "searchScope": {
+        "type": "team_connections",
+        "teamId": "TEAM_UUID"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Single directory">
+    Search within one directory. Requires an organization API key with a directory search grant.
+
+    ```json
+    {
+      "query": "festival programmers",
+      "numUsers": 10,
+      "searchScope": {
+        "type": "directory",
+        "directoryId": "DIRECTORY_UUID"
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Multiple directories">
+    Search across several directories in a single request. All directories must belong to the same organization. Requires an organization API key.
+
+    ```json
+    {
+      "query": "festival programmers",
+      "numUsers": 10,
+      "searchScope": {
+        "type": "directories",
+        "directoryIds": ["DIRECTORY_UUID_A", "DIRECTORY_UUID_B"]
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Response
+
+### 200 Success
+
+```json
+{
+  "status": "success",
+  "searchId": "uuid",
+  "payload": {
+    "users": []
+  }
+}
+```
+
+<ResponseField name="status" type="string" required>
+  Always `"success"` for a 200 response.
+</ResponseField>
+
+<ResponseField name="searchId" type="string" required>
+  Unique identifier for this search request. Useful for support and debugging.
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="payload.users" type="object[]" required>
+      Array of matched profile objects, ranked by relevance. Each object includes at minimum a `userId` field you can pass to the [Profile Read](/api/search/profile-read) endpoint. The array is empty when no profiles matched.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Response headers
+
+| Header | Description |
+|---|---|
+| `X-Developer-API-Credits-Remaining` | Your remaining credit balance after this request was charged |
+
+## Credits
+
+Each successful smart search costs **2 credits** by default, regardless of `numUsers`. Credits are reserved before the search runs, so out-of-credit requests fail immediately without consuming search resources. If a search returns no results or fails, the reservation is refunded.
+
+## Rate limits
+
+**60 requests per 60 seconds** per API key. Rate limits are tracked per key, not per IP address. A `429` response does not consume credits.
+
+## Error responses
+
+<AccordionGroup>
+  <Accordion title="400 — Bad request">
+    | Code | Description |
+    |---|---|
+    | `developer_query_required` | `query` is missing or empty |
+    | `developer_num_users_required` | `numUsers` is missing or not a valid positive integer |
+    | `developer_num_users_limit_exceeded` | `numUsers` exceeds the maximum of 100 |
+    | `developer_user_id_override_forbidden` | Request body includes a `userId` field, which is not permitted |
+    | `developer_search_replay_unsupported` | Request body includes a `searchId` field; search replay is not supported for developer API keys |
+  </Accordion>
+  <Accordion title="401 — Unauthorized">
+    | Code | Description |
+    |---|---|
+    | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided |
+  </Accordion>
+  <Accordion title="402 — Payment required">
+    | Code | Description |
+    |---|---|
+    | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of this search |
+  </Accordion>
+  <Accordion title="403 — Forbidden">
+    | Code | Description |
+    |---|---|
+    | `invalid_api_key` | The key is malformed, revoked, expired, or unknown |
+    | `missing_api_key_scope` | The key does not have the `search:read` scope |
+    | `developer_api_key_organization_required` | A directory or team scope was requested, but the key is a personal API key |
+    | `developer_api_key_organization_forbidden` | The organization API key is not authorized for the requested organization search scope |
+    | `developer_api_key_team_forbidden` | The organization API key is not authorized for the requested team |
+    | `search_directory_access_api_key_forbidden` | The organization API key does not have a matching directory search grant |
+  </Accordion>
+  <Accordion title="404 — Not found">
+    | Code | Description |
+    |---|---|
+    | `search_directory_not_found` | One or more requested directories do not exist, are archived, or are unavailable for search. Also returned when a search runs successfully but no profiles matched — in this case, no credits are consumed. |
+  </Accordion>
+  <Accordion title="409 — Conflict">
+    | Code | Description |
+    |---|---|
+    | `developer_api_idempotency_key_conflict` | The idempotency key was reused with different request parameters. Use a different key. |
+    | `developer_api_idempotency_key_refunded` | The idempotency key belongs to a previously refunded request. Send a fresh idempotency key to retry. |
+  </Accordion>
+  <Accordion title="429 — Rate limited">
+    | Code | Description |
+    |---|---|
+    | `developer_api_key_rate_limited` | You have exceeded 60 requests per 60 seconds for this API key |
+  </Accordion>
+</AccordionGroup>
+
+## Code examples
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
+```
+
+```javascript JavaScript
+const response = await fetch(`${API_BASE}/v2/social/profiles/searches/smart`, {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Idempotency-Key": "request-uuid-or-client-retry-key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    query: "founders in sf",
+    numUsers: 10,
+  }),
+});
+
+const data = await response.json();
+console.log(data.payload.users);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    f"{API_BASE}/v2/social/profiles/searches/smart",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Idempotency-Key": "request-uuid-or-client-retry-key",
+        "Content-Type": "application/json",
+    },
+    json={
+        "query": "founders in sf",
+        "numUsers": 10,
+    },
+)
+
+data = response.json()
+print(data["payload"]["users"])
+```
+
+</CodeGroup>
