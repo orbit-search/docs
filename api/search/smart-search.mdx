@@ -1,7 +1,7 @@
 ---
 title: "POST /v2/social/profiles/searches/smart — search"
-sidebarTitle: "Smart Search"
-description: "Run a natural language smart search against Orbit's people index. Returns ranked profiles. Supports global, team, and directory scopes. Costs 2 credits per result."
+sidebarTitle: "Smart search"
+description: "Run a natural language smart search against Orbit's people index. Returns ranked profiles. Supports global and directory scopes. Costs 2 credits per result."
 ---
 
 The smart search endpoint accepts a plain English query and returns a ranked list of matching profiles. Orbit resolves your query through structured, semantic, and agentic search modes automatically — you don't need to specify a mode. Each successful request costs credits; requests that return no results or fail validation are refunded.
@@ -45,14 +45,11 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
 </ParamField>
 
 <ParamField body="searchScope" type="object">
-  Scope of the search. Omit this field or set `{"type":"global"}` to search the full Orbit index. Use a scoped value to restrict results to a team's connections or one or more directories.
+  Scope of the search. Omit this field or set `{"type":"global"}` to search the full Orbit index. Use a directory-scoped value to restrict results to one or more directories.
 
   <Expandable title="properties">
     <ParamField body="searchScope.type" type="string" required>
-      One of: `"global"`, `"team_connections"`, `"directory"`, `"directories"`
-    </ParamField>
-    <ParamField body="searchScope.teamId" type="string">
-      Required when `type` is `"team_connections"`. The UUID of the team whose directory grants are searched.
+      One of: `"global"`, `"directory"`, `"directories"`
     </ParamField>
     <ParamField body="searchScope.directoryId" type="string">
       Required when `type` is `"directory"`. The UUID of a single directory to search.
@@ -66,7 +63,7 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
 <Note>
   - `userId` is not accepted in the request body.
   - `searchId` (search replay) is not accepted in the request body.
-  - **Personal API keys can only use global search.** To use `team_connections` or any directory scope, you must use an organization API key.
+  - **Personal API keys can only use global search.** To use a directory scope, you must use an organization API key.
 </Note>
 
 ### Search scope examples
@@ -79,20 +76,6 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
     {
       "query": "founders in sf",
       "numUsers": 10
-    }
-    ```
-  </Tab>
-  <Tab title="Team connections">
-    Search across all directories granted to a specific team. Requires an organization API key.
-
-    ```json
-    {
-      "query": "founders in sf",
-      "numUsers": 10,
-      "searchScope": {
-        "type": "team_connections",
-        "teamId": "TEAM_UUID"
-      }
     }
     ```
   </Tab>
@@ -197,9 +180,8 @@ Each successful smart search costs **2 credits** by default, regardless of `numU
     |---|---|
     | `invalid_api_key` | The key is malformed, revoked, expired, or unknown |
     | `missing_api_key_scope` | The key does not have the `search:read` scope |
-    | `developer_api_key_organization_required` | A directory or team scope was requested, but the key is a personal API key |
+    | `developer_api_key_organization_required` | A directory scope was requested, but the key is a personal API key |
     | `developer_api_key_organization_forbidden` | The organization API key is not authorized for the requested organization search scope |
-    | `developer_api_key_team_forbidden` | The organization API key is not authorized for the requested team |
     | `search_directory_access_api_key_forbidden` | The organization API key does not have a matching directory search grant |
   </Accordion>
   <Accordion title="404 — Not found">

@@ -1,6 +1,6 @@
 ---
 title: "Handle Orbit Search API errors in your application"
-sidebarTitle: "Error Handling"
+sidebarTitle: "Error handling"
 description: "Understand the Orbit Search error response format and every error code your application may encounter, including HTTP status, cause, and remediation."
 ---
 
@@ -46,8 +46,8 @@ Your error handling should always read the `error.code` field to determine what 
     |------|------|-------------|
     | 401 | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided. Add the header with a valid developer API key. |
     | 403 | `invalid_api_key` | The key is malformed, revoked, expired, or unknown. Verify the key is active in your key list and has not been revoked or expired. |
-    | 403 | `missing_api_key_scope` | The key does not include the scope required for this endpoint. For search, the key needs `search:read`; for profile reads, it needs `profile:read`. Create a new key with the correct scopes. |
-    | 403 | `api_key_management_requires_user_auth` | A developer API key attempted to create, list, revoke, or delete keys. Key management endpoints require a normal user session token, not a developer API key. |
+    | 403 | `missing_api_key_scope` | The key does not include the scope required for this endpoint. For search, the key needs `search:read`; for profile reads, it needs `profile:read`. Issue a replacement key with the correct scopes in the dashboard. |
+    | 403 | `api_key_management_requires_user_auth` | A developer API key attempted to create, list, revoke, or delete keys. Manage keys in the Orbit developer dashboard instead. |
 
     Example handling:
 
@@ -96,9 +96,8 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 403 | `developer_api_key_organization_required` | The requested operation (such as directory or team search) requires an organization API key. Personal API keys are rejected for these scopes. Switch to an organization API key. |
+    | 403 | `developer_api_key_organization_required` | The requested operation requires an organization API key. Personal API keys are rejected for directory scopes. Switch to an organization API key. |
     | 403 | `developer_api_key_organization_forbidden` | The organization API key is not authorized for the requested organization search scope. Ensure the key belongs to the correct organization. |
-    | 403 | `developer_api_key_team_forbidden` | The organization API key is not authorized for the requested team search scope. |
     | 404 | `search_directory_not_found` | One or more requested directories do not exist, have been archived, or are unavailable for search. Verify the `directoryId` values and check that the directories are active. |
     | 400 | `search_directory_cross_org_scope_unsupported` | A multi-directory search (`"type": "directories"`) included directories from more than one organization. All directories in a single request must belong to the same organization. |
     | 403 | `search_directory_access_api_key_forbidden` | The organization API key does not have a matching directory grant with `search` or `manage` permission. Add a grant for this key or use a key that already has access. |
@@ -155,7 +154,7 @@ Your error handling should always read the `error.code` field to determine what 
     if (error.code === "developer_api_credits_insufficient") {
       const { requiredCredits, remainingCredits } = error;
       logger.warn("Insufficient credits", { requiredCredits, remainingCredits });
-      // Notify your team or pause non-essential requests
+      // Notify operators or pause non-essential requests
     }
     ```
 
@@ -210,7 +209,7 @@ Your error handling should always read the `error.code` field to determine what 
 | 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `search_directory_cross_org_scope_unsupported` |
 | 401 | `missing_api_key` |
 | 402 | `developer_api_credits_insufficient` |
-| 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `developer_api_key_team_forbidden`, `search_directory_access_api_key_forbidden` |
+| 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `search_directory_access_api_key_forbidden` |
 | 404 | `developer_profile_not_found`, `search_directory_not_found` |
 | 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded` |
 | 429 | `developer_api_key_rate_limited` |

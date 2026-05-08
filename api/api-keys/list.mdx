@@ -1,126 +1,33 @@
 ---
-title: "GET /v2/api-keys — list your Orbit Search API keys"
-sidebarTitle: "List Keys"
-description: "Retrieve metadata for all your active and inactive Orbit Search API keys, including scopes, last-used timestamps, and expiry status."
+title: "View and audit your Orbit Search API keys"
+sidebarTitle: "View keys"
+description: "Use the Orbit developer dashboard to review active and revoked API keys, scopes, last-used timestamps, and expiry status."
 ---
 
-The list endpoint returns metadata for every key associated with your account. You can use it to audit what keys exist, check which are still active, and identify keys that are approaching expiry or have not been used recently. Raw key values are never included — you will only see the `display_key` (prefix and suffix) that you can safely share in UIs and support workflows.
+Use the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) to audit the API keys associated with your account or organization. The dashboard shows safe key metadata only; raw `sk_orb_...` values are shown once at creation and are never displayed again.
 
-## Endpoint
+## What you can inspect
 
-```
-GET /v2/api-keys
-```
+Open **Dashboard** → **API keys** to review:
 
-This endpoint requires a normal user session Bearer token. Developer API keys cannot call key management endpoints.
-
-## Response fields
-
-<ResponseField name="status" type="string" required>
-  Always `"success"` on a successful response.
-</ResponseField>
-
-<ResponseField name="payload" type="object" required>
-  <Expandable title="payload properties" defaultOpen={true}>
-    <ResponseField name="keys" type="object[]" required>
-      Array of API key metadata objects. Each object contains the following fields:
-
-      <Expandable title="key object properties" defaultOpen={true}>
-        <ResponseField name="id" type="string" required>
-          UUID that uniquely identifies this key. Pass it to the revoke or delete endpoints.
-        </ResponseField>
-
-        <ResponseField name="prefix" type="string" required>
-          The non-secret prefix portion of the key (e.g. `sk_orb_a0186`).
-        </ResponseField>
-
-        <ResponseField name="suffix" type="string" required>
-          The non-secret suffix portion of the key (e.g. `55fd`).
-        </ResponseField>
-
-        <ResponseField name="display_key" type="string" required>
-          A safe display representation combining prefix and suffix (e.g. `sk_orb_a0186...55fd`). Use this in UIs and support workflows to identify a key without revealing the secret.
-        </ResponseField>
-
-        <ResponseField name="name" type="string" required>
-          The human-readable label assigned at creation time.
-        </ResponseField>
-
-        <ResponseField name="scopes" type="string[]" required>
-          The permission scopes granted to this key.
-        </ResponseField>
-
-        <ResponseField name="created_at" type="string" required>
-          ISO 8601 timestamp of when the key was created.
-        </ResponseField>
-
-        <ResponseField name="last_used_at" type="string">
-          ISO 8601 timestamp of the most recent authenticated request made with this key. `null` if the key has never been used.
-        </ResponseField>
-
-        <ResponseField name="expires_at" type="string">
-          ISO 8601 expiry timestamp. `null` if the key has no expiry.
-        </ResponseField>
-
-        <ResponseField name="is_active" type="boolean" required>
-          `true` if the key can authenticate requests. `false` if the key has been revoked or has expired.
-        </ResponseField>
-
-        <ResponseField name="is_expired" type="boolean" required>
-          `true` if the key's `expires_at` is in the past.
-        </ResponseField>
-      </Expandable>
-    </ResponseField>
-  </Expandable>
-</ResponseField>
+| Field | What it means |
+| --- | --- |
+| Key name | The human-readable label assigned when the key was issued |
+| Display key | A safe identifier such as `sk_orb_a0186...55fd` |
+| Ownership | Whether the key belongs to your personal account or an organization |
+| Scopes | The operations the key can call, such as `search:read` or `profile:read` |
+| Status | Whether the key is active, revoked, or expired |
+| Last used | The most recent authenticated request made with the key |
+| Expiration | The optional expiry time, if one was set |
 
 <Tip>
-  During a key rotation, poll `GET /v2/api-keys` and watch `last_used_at` on the new key. Once it starts updating, you know live traffic has moved to the new key and it is safe to revoke the old one.
+  During a key rotation, watch the new key's last-used timestamp in the dashboard. Once it starts updating and the old key stops receiving traffic, you can revoke the old key.
 </Tip>
 
-## Example
+## Public API behavior
 
-<CodeGroup>
+Developer API keys authenticate search and profile-read requests. They cannot create, list, revoke, delete, or inspect other API keys.
 
-```bash curl
-curl "$API_BASE/v2/api-keys" \
-  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
-```
-
-```javascript JavaScript
-const response = await fetch(`${API_BASE}/v2/api-keys`, {
-  headers: {
-    Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-  },
-});
-
-const { payload } = await response.json();
-console.log(payload.keys);
-```
-
-</CodeGroup>
-
-### Response
-
-```json
-{
-  "status": "success",
-  "payload": {
-    "keys": [
-      {
-        "id": "uuid",
-        "prefix": "sk_orb_a0186",
-        "suffix": "55fd",
-        "display_key": "sk_orb_a0186...55fd",
-        "name": "production search",
-        "scopes": ["search:read", "profile:read"],
-        "created_at": "2026-04-29T00:00:00.000Z",
-        "last_used_at": "2026-04-29T01:00:00.000Z",
-        "expires_at": "2026-12-31T23:59:59.000Z",
-        "is_active": true,
-        "is_expired": false
-      }
-    ]
-  }
-}
-```
+<Note>
+  The key-management experience lives in the dashboard because public API callers only receive dashboard-issued developer keys. Start from a dashboard-issued `sk_orb_...` key, then use that key only for developer API requests.
+</Note>

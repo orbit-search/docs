@@ -1,0 +1,92 @@
+---
+title: "Directory access for organization API keys"
+sidebarTitle: "Directory access"
+description: "Grant organization API keys access to directories, find directory UUIDs, and run directory-scoped Orbit Search requests."
+---
+
+Directory search is the primitive for private corpora in Orbit Search. To search private data, use an organization API key with `search:read`, grant that key access to the target directory, then pass the directory UUID in `searchScope`.
+
+---
+
+## Find organization and directory IDs
+
+You need two IDs for directory search setup:
+
+- `organizationId` — the organization that owns the directory.
+- `directoryId` — the private corpus to search.
+
+When you create a directory, the create response returns both values:
+
+```json
+{
+  "payload": {
+    "id": "DIRECTORY_UUID",
+    "org_id": "ORGANIZATION_UUID",
+    "name": "Q4 Prospects"
+  }
+}
+```
+
+For an existing directory, list directories for the organization:
+
+```bash curl
+curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+Use the returned `id` as `DIRECTORY_ID`. For multi-directory search, collect the `id` for each directory you want to search.
+
+---
+
+## Grant directory access
+
+An organization API key can search a directory only when a matching grant exists. For most developer integrations, grant either:
+
+- the whole organization, when all organization keys may search the directory
+- the specific API key, when one integration should have access
+
+```bash curl
+curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "principal_type": "api_key",
+    "principal_id": "API_KEY_UUID",
+    "permission": "search"
+  }'
+```
+
+`API_KEY_UUID` is the dashboard-visible key ID or metadata ID for the organization key. It is not the raw `sk_orb_...` secret.
+
+---
+
+## Search one directory
+
+Use `searchScope.type: "directory"` with the directory UUID:
+
+```bash curl
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer $ORG_API_KEY" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "founders in sf",
+    "numUsers": 10,
+    "searchScope": { "type": "directory", "directoryId": "DIRECTORY_UUID" }
+  }'
+```
+
+## Search multiple directories
+
+Use `searchScope.type: "directories"` with an array of directory UUIDs. All directories must belong to the same organization.
+
+```json
+{
+  "query": "founders in sf",
+  "numUsers": 10,
+  "searchScope": {
+    "type": "directories",
+    "directoryIds": ["DIRECTORY_UUID_A", "DIRECTORY_UUID_B"]
+  }
+}
+```

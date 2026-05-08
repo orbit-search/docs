@@ -1,10 +1,10 @@
 ---
 title: "Run your first search and read a profile with Orbit"
-sidebarTitle: "First Search"
-description: "Go from zero to receiving profile results with Orbit Search — create an API key, run a smart search, and fetch a full profile record in minutes."
+sidebarTitle: "First request"
+description: "Go from zero to receiving profile results with Orbit Search — get an API key, run a smart search, and fetch a full profile record in minutes."
 ---
 
-The Orbit Search API lets you query a global index of public professional profiles using natural-language queries. This guide walks you through every step: creating an API key, running your first search request, reading the response, and fetching a complete profile for any result you get back.
+The Orbit Search API lets you query a global index of public professional profiles using natural-language queries. This guide walks you through every step: getting an API key, running your first search request, reading the response, and fetching a complete profile for any result you get back.
 
 ## Prerequisites
 
@@ -13,61 +13,15 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 ## Steps
 
 <Steps>
-  <Step title="Create an API key">
-    Generate a personal API key with the `search:read` and `profile:read` scopes. You must use a normal user session token (`$USER_ACCESS_TOKEN`) for this call — developer API keys cannot create other keys.
+  <Step title="Get an API key">
+    Open the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) and generate a personal API key with the `search:read` and `profile:read` scopes. Copy the raw `sk_orb_...` key when it appears.
 
-    <CodeGroup>
-
-    ```bash curl
-    curl -X POST "$API_BASE/v2/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "my first key",
-        "scopes": ["search:read", "profile:read"],
-        "expires_at": "2026-12-31T23:59:59.000Z"
-      }'
-    ```
-
-    ```javascript JavaScript
-    const response = await fetch(`${API_BASE}/v2/api-keys`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "my first key",
-        scopes: ["search:read", "profile:read"],
-        expires_at: "2026-12-31T23:59:59.000Z",
-      }),
-    });
-    const data = await response.json();
-    ```
-
-    </CodeGroup>
-
-    The response includes a `payload.key` field containing your raw API key:
-
-    ```json
-    {
-      "status": "success",
-      "payload": {
-        "id": "uuid",
-        "key": "sk_orb_a0186REDACTED55fd",
-        "prefix": "sk_orb_a0186",
-        "suffix": "55fd",
-        "display_key": "sk_orb_a0186...55fd",
-        "name": "my first key",
-        "scopes": ["search:read", "profile:read"],
-        "created_at": "2026-04-29T00:00:00.000Z",
-        "expires_at": "2026-12-31T23:59:59.000Z"
-      }
-    }
+    ```bash
+    export ORBIT_API_KEY="sk_orb_REDACTED"
     ```
 
     <Warning>
-      The raw key in `payload.key` is shown **only once**. Copy it to a secure location (such as an environment variable or secrets manager) before doing anything else. Future list responses only return metadata like `display_key`, not the raw key.
+      The public API starts after key issuance. Store the raw key in a secure location before closing the dashboard modal; it is not shown again.
     </Warning>
   </Step>
 

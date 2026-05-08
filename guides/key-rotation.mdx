@@ -1,55 +1,26 @@
 ---
 title: "Rotate an Orbit Search API key with zero downtime"
-sidebarTitle: "Key Rotation"
-description: "Replace an active Orbit Search API key without dropping requests — create a replacement key, migrate traffic gradually, verify usage, then revoke the old key."
+sidebarTitle: "Key rotation"
+description: "Replace an active Orbit Search API key without dropping requests — issue a replacement key, migrate traffic gradually, verify usage, then revoke the old key."
 ---
 
-Rotating an API key without downtime requires a careful sequence: create the replacement first, migrate traffic gradually, confirm the new key is receiving requests, and only then revoke the old one. This guide walks you through each step so you can complete a rotation without dropping a single request.
+Rotating an API key without downtime requires a careful sequence: issue the replacement first, migrate traffic gradually, confirm the new key is receiving requests, and only then revoke the old one. This guide walks you through each step so you can complete a rotation without dropping a single request.
 
 <Warning>
-  The raw API key in `payload.key` is shown **only once** — at the moment of creation. As soon as the create response arrives, store the key in your secrets manager or environment configuration. You cannot retrieve the raw key again after this point; only non-secret metadata (`display_key`, `id`, `last_used_at`, etc.) is available in subsequent list responses.
+  The raw API key is shown **only once** in the dashboard. As soon as it appears, store it in your secrets manager or environment configuration. You cannot retrieve the raw key again after this point; only non-secret metadata such as `display_key` and `last_used_at` remains visible.
 </Warning>
 
 ## Steps
 
 <Steps>
-  <Step title="Create a new key">
-    Create the replacement key before touching anything in production. Give it a name that makes its purpose and environment clear.
+  <Step title="Issue a new key">
+    Create the replacement key in the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) before touching anything in production. Give it a name that makes its purpose and environment clear, such as `"production search v2"`.
 
-    <CodeGroup>
-
-    ```bash curl
-    curl -X POST "$API_BASE/v2/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "production search v2",
-        "scopes": ["search:read", "profile:read"],
-        "expires_at": "2027-12-31T23:59:59.000Z"
-      }'
+    ```bash
+    export ORBIT_API_KEY_NEXT="sk_orb_NEW_KEY_VALUE"
     ```
 
-    ```javascript JavaScript
-    const response = await fetch(`${API_BASE}/v2/api-keys`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "production search v2",
-        scopes: ["search:read", "profile:read"],
-        expires_at: "2027-12-31T23:59:59.000Z",
-      }),
-    });
-    const data = await response.json();
-    const newRawKey = data.payload.key; // store this immediately
-    const newKeyId = data.payload.id;
-    ```
-
-    </CodeGroup>
-
-    Store `payload.key` (the raw key) and `payload.id` immediately. You need `id` to verify traffic and eventually revoke the old key.
+    Store the raw key immediately. Keep the dashboard open long enough to copy the key's `display_key` or name for tracking during the rollout.
 
     <Tip>
       Use the `name` field to encode the key's purpose and environment — for example, `"production search v2"` or `"staging worker 2026-05"`. The `display_key` field (e.g., `sk_orb_a0186...55fd`) combines a non-secret prefix and suffix that you can safely show in dashboards, logs, and support tickets to identify a key without exposing the raw secret.
@@ -70,25 +41,7 @@ Rotating an API key without downtime requires a careful sequence: create the rep
   </Step>
 
   <Step title="Verify traffic on the new key">
-    Fetch your key list and confirm the new key's `last_used_at` timestamp has advanced. This proves the key is being used in production.
-
-    <CodeGroup>
-
-    ```bash curl
-    curl "$API_BASE/v2/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
-    ```
-
-    ```javascript JavaScript
-    const response = await fetch(`${API_BASE}/v2/api-keys`, {
-      headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
-    });
-    const data = await response.json();
-    const newKey = data.payload.keys.find((k) => k.id === NEW_KEY_ID);
-    console.log(newKey.last_used_at); // should be recent
-    ```
-
-    </CodeGroup>
+    Open the dashboard key list or usage view and confirm the new key's `last_used_at` timestamp has advanced. This proves the key is being used in production.
 
     Example list response entry for the new key:
 
@@ -120,26 +73,12 @@ Rotating an API key without downtime requires a careful sequence: create the rep
   <Step title="Revoke the old key">
     Once all callers have moved to the new key and you've verified no traffic is hitting the old key, revoke it.
 
-    <CodeGroup>
-
-    ```bash curl
-    curl -X PUT "$API_BASE/v2/api-keys/$OLD_KEY_ID/revoke" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
-    ```
-
-    ```javascript JavaScript
-    await fetch(`${API_BASE}/v2/api-keys/${OLD_KEY_ID}/revoke`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
-    });
-    ```
-
-    </CodeGroup>
+    Use **Dashboard** → **API keys** to revoke the old key.
 
     Revoked keys are immediately rejected by authentication and show `is_active: false` in list responses. They remain visible in the list as inactive metadata, which preserves an audit trail linking the key to past requests.
 
     <Info>
-      Prefer `PUT /v2/api-keys/:id/revoke` over `DELETE /v2/api-keys/:id` for rotation. Deletion removes the key record entirely, which eliminates its audit trail. Revocation keeps the key visible in an inactive state so you (and support) can correlate historical request IDs and ledger entries back to the key that made them.
+      Prefer revoke over delete for rotation. Deletion removes the key record entirely, which eliminates its audit trail. Revocation keeps the key visible in an inactive state so you (and support) can correlate historical request IDs and ledger entries back to the key that made them.
     </Info>
   </Step>
 </Steps>

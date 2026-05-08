@@ -1,15 +1,15 @@
 ---
 title: "Directory access grants for Orbit Search directories"
-sidebarTitle: "Directory Grants"
-description: "Control who can search, upload to, or administer an Orbit directory by assigning grants to organizations, teams, users, or API keys with specific permissions."
+sidebarTitle: "Access grants"
+description: "Control who can search, upload to, or administer an Orbit directory by assigning grants to organizations, users, or API keys with specific permissions."
 ---
 
-Directory grants are the permission records that control access to a directory. Each grant assigns a single permission level to a principal — an organization, team, user, or API key. When a request arrives, Orbit checks whether the caller's principal matches any grant on the requested directory. You use the endpoints below to inspect and modify the grant list for any directory your credentials can manage.
+Directory grants are the permission records that control access to a directory. Each grant assigns a single permission level to a principal — an organization, user, or API key. When a request arrives, Orbit checks whether the caller's principal matches any grant on the requested directory. You use the endpoints below to inspect and modify the grant list for any directory your credentials can manage.
 
 <Note>
   Organization admins have implicit access to all directories within their organization and do not require explicit grants.
 
-  For developer API key directory search, the key must be an organization API key (not a personal key) and must match an `organization`, `team`, or `api_key` grant with `search` or `manage` permission on the target directory. Personal API keys are always rejected for directory search.
+  For developer API key directory search, the key must be an organization API key (not a personal key) and must match an `organization` or `api_key` grant with `search` or `manage` permission on the target directory. Personal API keys are always rejected for directory search.
 </Note>
 
 ---
@@ -37,7 +37,6 @@ Directory grants are the permission records that control access to a directory. 
 | Principal type | What it grants access to |
 | --- | --- |
 | `organization` | All users and API keys across the entire organization. |
-| `team` | All users and API keys associated with that team. |
 | `user` | One specific organization member. |
 | `api_key` | One specific organization API key. |
 
@@ -89,11 +88,11 @@ Assigns a permission to a principal on the specified directory. If the principal
 ### Request body
 
 <ParamField body="principal_type" type="string" required>
-  The type of principal receiving the grant. One of `organization`, `team`, `user`, or `api_key`.
+  The type of principal receiving the grant. One of `organization`, `user`, or `api_key`.
 </ParamField>
 
 <ParamField body="principal_id" type="string" required>
-  The UUID of the principal — the organization ID, team ID, user ID, or API key ID depending on `principal_type`.
+  The UUID of the principal — the organization ID, user ID, or API key ID depending on `principal_type`.
 </ParamField>
 
 <ParamField body="permission" type="string" required>

@@ -1,5 +1,6 @@
 ---
 title: "How Orbit Search understands and routes your queries"
+sidebarTitle: "Search behavior"
 description: "Learn how Orbit Search interprets natural language, which request fields are required, and how to scope a search to global profiles or private directories."
 ---
 
@@ -53,7 +54,7 @@ Every search request body has three fields:
 
 ## Search scopes
 
-The `searchScope` field controls which corpus the search runs against. There are four scope shapes.
+The `searchScope` field controls which corpus the search runs against. There are three scope shapes.
 
 ### Global search
 
@@ -64,18 +65,6 @@ Omitting `searchScope` or setting `type` to `"global"` runs the search across al
   "query": "founders in sf",
   "numUsers": 10,
   "searchScope": { "type": "global" }
-}
-```
-
-### Team connections search
-
-The `team_connections` scope searches the directories that have been granted to a specific team. The API resolves the team to its granted directories and then runs directory search — your key must be an organization API key that belongs to the team's organization.
-
-```json
-{
-  "query": "founders in sf",
-  "numUsers": 10,
-  "searchScope": { "type": "team_connections", "teamId": "TEAM_UUID" }
 }
 ```
 
@@ -108,7 +97,7 @@ The `directories` scope searches across multiple directories at once. All direct
 
 ## Personal vs. organization API keys
 
-Global search works with both personal and organization API keys. Directory-scoped search — including `team_connections`, `directory`, and `directories` scopes — requires an organization API key. Personal API keys are rejected for any scope that targets a private corpus.
+Global search works with both personal and organization API keys. Directory-scoped search — the `directory` and `directories` scopes — requires an organization API key. Personal API keys are rejected for any scope that targets a private corpus.
 
 For details on creating organization API keys and managing directory access, see [Organizations](/concepts/organizations) and [Search Directories](/concepts/directories).
 

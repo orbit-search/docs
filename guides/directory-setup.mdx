@@ -1,13 +1,13 @@
 ---
 title: "Set up a Search Directory for custom people data"
-sidebarTitle: "Directory Setup"
+sidebarTitle: "Directory setup"
 description: "Create an Orbit Search Directory, upload a CSV of contacts, verify the source is ready, and run a scoped search against your own people data."
 ---
 
 Search Directories let you build a private, searchable corpus of people data inside your organization. Instead of querying the global Orbit index, you query a corpus you control — populated from CSV uploads, connection imports, or other sources. This guide walks you through creating a directory, uploading your first CSV, checking that the data is indexed, and running a scoped search against it.
 
 <Note>
-  Directory operations require an **organization API key** — personal API keys are rejected. Your key must belong to the directory's organization and have an organization, team, or API-key grant with `search` or `manage` permission. Use your user session token (`$USER_ACCESS_TOKEN`) for directory management calls (create, upload, check status), and your organization API key (`$ORG_API_KEY`) for search calls.
+  Directory search requires an **organization API key** — personal API keys are rejected. Your key must belong to the directory's organization and have an organization-level or direct API-key grant with `search` or `manage` permission. Use your user session token (`$USER_ACCESS_TOKEN`) for directory management calls (create, upload, check status), and your organization API key (`$ORG_API_KEY`) for search calls.
 </Note>
 
 ## Steps
@@ -43,7 +43,18 @@ Search Directories let you build a private, searchable corpus of people data ins
 
     </CodeGroup>
 
-    Store the `directoryId` from the response — you need it for all subsequent calls.
+    Store the `directoryId` from the response — you need it for uploads, readiness checks, grants, and search.
+  </Step>
+
+  <Step title="Find existing directory IDs">
+    If the directory already exists, list the organization's directories and use each returned `id` as a `DIRECTORY_ID`.
+
+    ```bash curl
+    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+
+    The response includes `id`, `name`, `type`, and `org_id` for each directory. Use `id` in `searchScope.directoryId`, or collect multiple `id` values for `searchScope.directoryIds`.
   </Step>
 
   <Step title="Upload a CSV">

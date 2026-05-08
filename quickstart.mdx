@@ -1,39 +1,23 @@
 ---
 title: "Get started with Orbit Search: your first API call"
-description: "Create an API key, run a smart search with a plain-English query, and fetch a full profile record — all with a single bearer token."
+sidebarTitle: "Quickstart"
+description: "Get an API key from the Orbit dashboard, run a smart search with a plain-English query, and fetch a full profile record."
 ---
 
-This guide walks you through the three steps you need to make your first working Orbit Search request: creating an API key, running a smart search, and reading a profile. By the end you'll have a bearer token, a search result, and a structured profile object — all from the API base URL `https://api.orbitsearch.com`.
+This guide walks you through the three steps you need to make your first working Orbit Search request: getting an API key, running a smart search, and reading a profile. By the end you'll have a bearer token, a search result, and a structured profile object — all from the API base URL `https://api.orbitsearch.com`.
 
 <Steps>
-  <Step title="Create an API key">
-    Log in to your Orbit Search account and create a personal API key with the `search:read` and `profile:read` scopes. The raw key is returned exactly once in the `payload.key` field — copy it to a secure location immediately.
+  <Step title="Get an API key">
+    Log in to the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) and generate a personal API key with the `search:read` and `profile:read` scopes.
+
+    Copy the raw key when the dashboard shows it. It starts with `sk_orb_` and is shown only once.
 
     ```bash
-    curl -X POST "https://api.orbitsearch.com/v2/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"my first key","scopes":["search:read","profile:read"]}'
-    ```
-
-    The response includes your key in `payload.key`:
-
-    ```json
-    {
-      "status": "success",
-      "payload": {
-        "id": "uuid",
-        "key": "sk_orb_a0186REDACTED55fd",
-        "display_key": "sk_orb_a0186...55fd",
-        "name": "my first key",
-        "scopes": ["search:read", "profile:read"],
-        "created_at": "2026-04-29T00:00:00.000Z"
-      }
-    }
+    export ORBIT_API_KEY="sk_orb_REDACTED"
     ```
 
     <Warning>
-      The raw key in `payload.key` is shown only once. After creation, the API only returns the non-secret `display_key` (e.g. `sk_orb_a0186...55fd`). Store `payload.key` in a secrets manager or environment variable before closing this response.
+      The public developer API does not create your first key. You need a dashboard-issued `sk_orb_...` key before making API requests. Store it in a secrets manager or environment variable before closing the dashboard modal.
     </Warning>
   </Step>
 

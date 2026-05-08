@@ -1,5 +1,6 @@
 ---
 title: "How API credits and rate limits work in Orbit Search"
+sidebarTitle: "Credits and limits"
 description: "Orbit Search charges credits per successful request. Learn how reservation, refunds, monthly grants, idempotency, and rate limits work together."
 ---
 
@@ -103,10 +104,4 @@ Do not log raw API key values in your application. Rate limits are keyed by API 
 
 ## Inspecting usage
 
-Authenticated users can retrieve a usage summary — including the current period allowance, credits used, remaining credits, recent ledger entries, and per-key breakdowns — with:
-
-```http
-GET /v2/api-keys/usage
-```
-
-Developer API keys cannot call this endpoint. Use your normal user access token to check usage.
+Open the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) to inspect your current allowance, credits used, remaining credits, recent ledger entries, and per-key breakdowns. Developer API keys cannot call key-management or usage endpoints; they only authenticate developer API requests such as search and profile reads.

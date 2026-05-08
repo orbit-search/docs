@@ -1,108 +1,60 @@
 ---
-title: "Organization API keys and resource management in Orbit"
-sidebarTitle: "Organizations"
-description: "Create organization-scoped API keys, understand personal vs. workspace organizations, and learn when to use org keys for directory search in Orbit Search."
+title: "Organization keys and resource ownership"
+sidebarTitle: "Organization keys"
+description: "Understand personal vs. workspace organizations, organization-scoped API keys, and when to use org keys for directory search in Orbit Search."
 ---
 
-Every Orbit account comes with a personal organization created automatically at signup. Personal organizations give you a private space for your own connections and searches. Workspace organizations are shared environments that support multiple members, teams, and enterprise features — they are the primary context for directory search, team-based access control, and API integrations built on behalf of an organization. Organizations own directories, sources, people, and grants; all resource IDs in directory and search APIs are scoped to an organization.
+Every Orbit account comes with a personal organization created automatically at signup. Personal organizations give you a private space for your own connections and searches. Workspace organizations are shared environments for directories, access grants, and API integrations built on behalf of an organization.
 
 <Tip>
   **Personal key vs. organization key:**
-  - Use a **personal API key** for personal search use cases and your own connections. Personal keys meter credits against you individually and cannot access directory corpora.
-  - Use an **organization API key** for directory search, team-scoped search, and enterprise integrations. Organization keys meter credits against the organization and must match a directory grant to search directory corpora.
+  - Use a **personal API key** for global public search and personal development.
+  - Use an **organization API key** for directory search and integrations that should meter credits against an organization.
 </Tip>
-
----
 
 ## Organization API keys
 
-Organization API keys are scoped to a specific organization. They authenticate as the organization (not as a user), which allows them to perform directory search and other org-scoped operations without a user session. You create and manage organization API keys using a normal authenticated user session.
+Organization API keys authenticate as the organization rather than as a user. This lets a backend service search organization-owned directories without requiring an end-user session.
 
-### Create an organization API key
+Create organization keys in the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys). Choose the organization that should own the key, select the scopes your integration needs, and copy the raw `sk_orb_...` value when it appears.
 
-`POST /v2/organizations/:organizationId/api-keys`
+<Warning>
+  The raw key is shown only once. Store it immediately in your secrets manager. After that, the dashboard only shows safe metadata such as `display_key`, name, scopes, status, expiration, and last-used timestamps.
+</Warning>
 
-Creates a new API key scoped to the specified organization. The raw key is returned once in the `payload.key` field — store it immediately. Subsequent list responses include only `display_key` and other metadata, never the full key.
+## Key fields
 
-### Path parameters
+Dashboard key records expose non-secret metadata:
 
-<ParamField path="organizationId" type="string" required>
-  The UUID of the organization that will own the key.
-</ParamField>
+| Field | Meaning |
+| --- | --- |
+| `display_key` | Safe prefix/suffix representation, such as `sk_orb_a0186...55fd` |
+| `name` | Human-readable label for the key |
+| `scopes` | Allowed operations, such as `search:read` and `profile:read` |
+| `environment` | Optional environment label for organization keys |
+| `last_used_at` | Timestamp of the most recent successful request |
+| `is_active` | Whether the key can currently authenticate requests |
 
-### Request body
+## Directory access
 
-<ParamField body="name" type="string" required>
-  A human-readable label for this key (for example, `"production search"`). Used to identify the key in management views.
-</ParamField>
+Organization keys can search private directory corpora only when access grants allow it. A key must have one of the following:
 
-<ParamField body="scopes" type="string[]" required>
-  The API scopes this key is authorized to use. For example, `["search:read", "profile:read"]`.
-</ParamField>
+- an organization-level grant on the directory
+- a direct API-key grant
 
-<ParamField body="environment" type="string">
-  An optional environment label such as `"production"` or `"staging"`. Used for organizational purposes in management views.
-</ParamField>
+If none of those grants match, directory-scoped search returns an authorization error.
 
-<ParamField body="team_ids" type="string[]">
-  An optional list of team UUIDs. When provided, the key is restricted to those teams and can only access directories granted to those teams. See [teams](/api/organizations/teams) for details.
-</ParamField>
+## Search example
 
-### Response fields
+Use an organization key exactly like a personal key: pass it as a bearer token.
 
-<ResponseField name="id" type="string">
-  UUID of the newly created API key.
-</ResponseField>
-
-<ResponseField name="key" type="string">
-  The raw API key value. This is only returned once at creation — store it immediately and treat it as a secret.
-</ResponseField>
-
-<ResponseField name="display_key" type="string">
-  A non-secret representation of the key combining prefix and suffix, for example `sk_orb_a0186...55fd`. Use this in UI and support workflows to identify the key without exposing the raw value.
-</ResponseField>
-
-<ResponseField name="name" type="string">
-  The label you provided at creation.
-</ResponseField>
-
-<ResponseField name="scopes" type="string[]">
-  The scopes assigned to this key.
-</ResponseField>
-
-<ResponseField name="created_at" type="string">
-  ISO 8601 timestamp of when the key was created.
-</ResponseField>
-
-<CodeGroup>
-
-```bash curl
-curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
-  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+```bash
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "production search",
-    "scopes": ["search:read", "profile:read"],
-    "environment": "production"
+    "query": "founders in sf",
+    "numUsers": 10,
+    "searchScope": { "type": "directory", "directoryId": "DIRECTORY_UUID" }
   }'
-```
-
-</CodeGroup>
-
-Example response:
-
-```json
-{
-  "status": "success",
-  "payload": {
-    "id": "uuid",
-    "key": "sk_orb_a0186REDACTED55fd",
-    "prefix": "sk_orb_a0186",
-    "suffix": "55fd",
-    "display_key": "sk_orb_a0186...55fd",
-    "name": "production search",
-    "scopes": ["search:read", "profile:read"],
-    "created_at": "2026-04-29T00:00:00.000Z"
-  }
-}
 ```

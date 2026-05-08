@@ -1,245 +1,68 @@
 ---
-title: "Create a developer API key for the Orbit Search API"
-sidebarTitle: "Create Key"
-description: "Generate a personal or organization-scoped Orbit Search API key with specific scopes, an optional expiry date, and optional team restrictions."
+title: "Get your Orbit Search API key"
+sidebarTitle: "Get API key"
+description: "Get your first Orbit Search API key in the dashboard, choose the right scopes, and store the raw key safely before making API requests."
 ---
 
-API keys let your applications call the Orbit Search API without a user session. You create keys using your own user access token, then distribute the resulting `sk_orb_...` key to the service that needs it. Each key carries a set of scopes that limits what it can do — so a read-only integration gets a read-only key.
+API keys let your applications call the Orbit Search API without a user session. Get your first key in the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys), then use the resulting `sk_orb_...` value as the bearer token for search and profile requests.
 
 <Warning>
-  The raw key (`payload.key`) is returned **only once** at creation time. Copy it into a secret manager immediately. All subsequent API responses show only `display_key` (e.g. `sk_orb_a0186...55fd`), which cannot be used to authenticate.
+  The raw key is shown **only once** in the dashboard. Copy it into a secret manager immediately. After you close the modal, Orbit only shows the safe `display_key` form, such as `sk_orb_a0186...55fd`.
 </Warning>
 
-## Endpoints
+## Where to get keys
 
-<Tabs>
-  <Tab title="Personal key">
+Use **Dashboard** → **API keys** to issue personal and organization-scoped keys.
+
+<Steps>
+  <Step title="Open the developer dashboard">
+    Sign in to Orbit and go to [developer.orbitsearch.com/dashboard/keys](https://developer.orbitsearch.com/dashboard/keys).
+  </Step>
+  <Step title="Choose key ownership">
+    Use a **personal key** for global search and local development. Use an **organization key** when your integration needs to search directories or other organization-owned corpora.
+  </Step>
+  <Step title="Select scopes">
+    Choose the minimum scopes your integration needs:
+
+    - `search:read` — call `POST /v2/social/profiles/searches/smart`
+    - `profile:read` — call `GET /v2/developer/profiles/:id`
+  </Step>
+  <Step title="Copy and store the raw key">
+    Store the raw `sk_orb_...` value in your secrets manager or environment configuration.
+
+    ```bash
+    export ORBIT_API_KEY="sk_orb_REDACTED"
     ```
-    POST /v2/api-keys
-    ```
-  </Tab>
-  <Tab title="Organization key">
-    ```
-    POST /v2/organizations/:organizationId/api-keys
-    ```
-  </Tab>
-</Tabs>
+  </Step>
+</Steps>
 
-Both endpoints require a normal user session Bearer token. Developer API keys cannot create, list, revoke, or delete other keys.
+<Note>
+  The public developer API does not create your first API key. It starts after you already have a dashboard-issued `sk_orb_...` key.
+</Note>
 
-## Request parameters
+## Key types
 
-### Path parameters
+| Key type | Best for | Search scopes |
+| --- | --- | --- |
+| Personal key | Development, prototypes, global people search | Global search only |
+| Organization key | Production integrations and directory search | Global, directory, and directories scopes with matching grants |
 
-<ParamField path="organizationId" type="string">
-  The UUID of the organization. Required only when creating an organization key.
-</ParamField>
+Personal keys meter credits against your user account. Organization keys meter credits against the organization that owns the key.
 
-### Body parameters
+## Using the key
 
-<ParamField body="name" type="string" required>
-  A human-readable label for the key, for example `"production search"`. Shown in list responses and the `display_key` metadata to help you identify keys without exposing the secret.
-</ParamField>
+Pass the raw key in the `Authorization` header:
 
-<ParamField body="scopes" type="string[]" required>
-  List of permission scopes to grant. Supported values:
-
-  - `"search:read"` — call the non-streaming smart search endpoint.
-  - `"profile:read"` — fetch a public developer profile DTO by ID.
-</ParamField>
-
-<ParamField body="expires_at" type="string">
-  ISO 8601 datetime at which the key expires, for example `"2026-12-31T23:59:59.000Z"`. If omitted, the key does not expire unless the operator has configured a default TTL. Requested expirations beyond the operator-configured maximum TTL are rejected.
-</ParamField>
-
-<ParamField body="environment" type="string">
-  An optional environment label (e.g. `"production"` or `"staging"`). Organization keys only.
-</ParamField>
-
-<ParamField body="team_ids" type="string[]">
-  Restrict the key to one or more teams within the organization. When set, the key can only search corpora granted to those teams. Organization keys only.
-</ParamField>
-
-## Response fields
-
-<ResponseField name="status" type="string" required>
-  Always `"success"` on a successful response.
-</ResponseField>
-
-<ResponseField name="payload" type="object" required>
-  <Expandable title="payload properties" defaultOpen={true}>
-    <ResponseField name="id" type="string" required>
-      UUID that uniquely identifies this key. Use it in revoke and delete requests.
-    </ResponseField>
-
-    <ResponseField name="key" type="string" required>
-      The full raw API key (e.g. `sk_orb_a0186REDACTED55fd`). **Returned once only.** Store it in a secret manager before discarding this response.
-    </ResponseField>
-
-    <ResponseField name="prefix" type="string" required>
-      The non-secret prefix portion of the key (e.g. `sk_orb_a0186`).
-    </ResponseField>
-
-    <ResponseField name="suffix" type="string" required>
-      The non-secret suffix portion of the key (e.g. `55fd`).
-    </ResponseField>
-
-    <ResponseField name="display_key" type="string" required>
-      A safe display representation combining prefix and suffix (e.g. `sk_orb_a0186...55fd`). Use this in UIs and support workflows.
-    </ResponseField>
-
-    <ResponseField name="name" type="string" required>
-      The label you provided at creation time.
-    </ResponseField>
-
-    <ResponseField name="scopes" type="string[]" required>
-      The scopes granted to this key.
-    </ResponseField>
-
-    <ResponseField name="created_at" type="string" required>
-      ISO 8601 timestamp of when the key was created.
-    </ResponseField>
-
-    <ResponseField name="expires_at" type="string">
-      ISO 8601 expiry timestamp. `null` if the key was created without an expiry and no operator default TTL applies.
-    </ResponseField>
-  </Expandable>
-</ResponseField>
-
-## Examples
-
-<Tabs>
-  <Tab title="Personal key">
-    <CodeGroup>
-
-    ```bash curl
-    curl -X POST "$API_BASE/v2/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "production search",
-        "scopes": ["search:read", "profile:read"],
-        "expires_at": "2026-12-31T23:59:59.000Z"
-      }'
-    ```
-
-    ```javascript JavaScript
-    const response = await fetch(`${API_BASE}/v2/api-keys`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "production search",
-        scopes: ["search:read", "profile:read"],
-        expires_at: "2026-12-31T23:59:59.000Z",
-      }),
-    });
-
-    const { payload } = await response.json();
-    // Store payload.key immediately — it will not be shown again
-    console.log(payload.key);
-    ```
-
-    </CodeGroup>
-  </Tab>
-  <Tab title="Organization key">
-    <CodeGroup>
-
-    ```bash curl
-    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "customer production",
-        "scopes": ["search:read", "profile:read"],
-        "environment": "production"
-      }'
-    ```
-
-    ```javascript JavaScript
-    const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/api-keys`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "customer production",
-          scopes: ["search:read", "profile:read"],
-          environment: "production",
-        }),
-      }
-    );
-
-    const { payload } = await response.json();
-    console.log(payload.key);
-    ```
-
-    </CodeGroup>
-
-    To restrict an organization key to specific teams, include `team_ids`:
-
-    <CodeGroup>
-
-    ```bash curl
-    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/api-keys" \
-      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "name": "team search",
-        "scopes": ["search:read"],
-        "team_ids": ["TEAM_UUID"]
-      }'
-    ```
-
-    ```javascript JavaScript
-    const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/api-keys`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${USER_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: "team search",
-          scopes: ["search:read"],
-          team_ids: ["TEAM_UUID"],
-        }),
-      }
-    );
-    ```
-
-    </CodeGroup>
-  </Tab>
-</Tabs>
-
-### Success response
-
-```json
-{
-  "status": "success",
-  "payload": {
-    "id": "uuid",
-    "key": "sk_orb_a0186REDACTED55fd",
-    "prefix": "sk_orb_a0186",
-    "suffix": "55fd",
-    "display_key": "sk_orb_a0186...55fd",
-    "name": "production search",
-    "scopes": ["search:read", "profile:read"],
-    "created_at": "2026-04-29T00:00:00.000Z",
-    "expires_at": "2026-12-31T23:59:59.000Z"
-  }
-}
+```bash
+curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  -H "Authorization: Bearer $ORBIT_API_KEY" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
 ```
 
-## Error codes
+## Managing keys
 
-| Code | HTTP status | Description |
-| ---- | ----------- | ----------- |
-| `invalid_api_key_request` | 400 | Unsupported scope, name too long, invalid `expires_at`, or expiry beyond the configured maximum TTL. |
-| `api_key_management_requires_user_auth` | 403 | The request was made with a developer API key instead of a user access token. Key management always requires user authentication. |
+Use the dashboard to rotate, revoke, and inspect keys. The dashboard shows non-secret metadata like `display_key`, name, scopes, status, expiration, and last-used timestamps. It never shows the raw key again after creation.
+
+Developer API keys cannot create, list, revoke, or delete other API keys.
