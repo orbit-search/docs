@@ -112,7 +112,7 @@ body {
 /* Desktop nav row: match api-landing h-16 px-6 */
 #navbar .h-12 {
   height: 64px !important;
-  padding-left: 16px !important;
+  padding-left: 24px !important;
   padding-right: 24px !important;
   gap: 32px !important;
 }
