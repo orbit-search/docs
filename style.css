@@ -70,23 +70,20 @@ select {
 }
 
 html {
-  background: var(--orbit-ink-950);
+  background: #00050E;
 }
 
 body {
   color: var(--orbit-ink-50);
-  background:
-    radial-gradient(circle at 18% -18%, rgba(255, 0, 85, 0.2), transparent 34rem),
-    radial-gradient(circle at 84% -10%, rgba(137, 1, 254, 0.22), transparent 32rem),
-    linear-gradient(180deg, #070512 0%, #050711 44%, var(--orbit-ink-950) 100%);
+  background: #00050E;
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
 ::selection {
-  background: rgba(112, 235, 255, 0.26);
-  color: #ffffff;
+  background: #FAFAFA;
+  color: #0A0A0A;
 }
 
 #background-color {
@@ -94,23 +91,107 @@ body {
 }
 
 #navbar {
-  border-bottom: 1px solid var(--orbit-border);
-  background: rgba(6, 13, 29, 0.78);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-bottom: none;
+  background: rgba(0, 5, 14, 0.68);
+  box-shadow: none;
   backdrop-filter: blur(18px);
+}
+
+/* Hide Mintlify's default border & bg overlays */
+#navbar > .z-10.absolute,
+#navbar > .z-0.absolute {
+  display: none !important;
+}
+
+/* Zero out wrapper padding */
+#navbar .px-0 {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Desktop nav row: match api-landing h-16 px-6 */
+#navbar .h-12 {
+  height: 64px !important;
+  padding-left: 16px !important;
+  padding-right: 24px !important;
+  gap: 32px !important;
+}
+
+/* Logo area: don't stretch, kill gap to hidden empty div */
+#navbar .h-12 > .flex-1:first-child {
+  flex: 0 0 auto !important;
+  gap: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Hide the empty navbar-links div so it doesn't eat gap space */
+#navbar .h-12 > .flex-1:first-child > div {
+  display: none !important;
+}
+
+/* Nav tabs container: no extra padding */
+#navbar .h-12 > .flex-1:first-child ~ nav {
+  padding: 0 !important;
+}
+
+/* Right container: take remaining space, push items to end */
+#navbar .topbar-right-container {
+  flex: 1 1 auto !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+}
+
+/* Force full desktop nav at all widths above mobile — no intermediate condensed layout */
+#search-bar-entry-mobile {
+  display: none !important;
+}
+button[aria-label="More actions"] {
+  display: none !important;
+}
+#navbar .topbar-right-container ul {
+  display: flex !important;
+}
+#navbar .topbar-right-container .navbar-link {
+  display: flex !important;
 }
 
 #navbar::before {
   content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 20;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
   height: 3px;
   background: var(--orbit-top-gradient);
+  pointer-events: none;
 }
 
-.nav-logo {
-  max-height: 24px;
+.nav-logo,
+.nav-logo * {
+  max-height: 36px !important;
+  height: 36px !important;
+}
+
+.nav-logo img,
+.nav-logo svg {
+  height: 36px !important;
+  width: 36px !important;
+  max-height: 36px !important;
+  object-fit: contain;
+}
+
+#navbar img[alt],
+#navbar a[href] > img {
+  height: 36px !important;
+  width: 36px !important;
+  max-height: 36px !important;
+  object-fit: contain;
+}
+
+/* Remove Mintlify's pb-px that offsets vertical centering */
+#navbar .pb-px {
+  padding-bottom: 0 !important;
 }
 
 navbar-link,
@@ -120,11 +201,20 @@ nav-anchor,
 .link {
   border-radius: 8px;
   color: rgba(244, 244, 245, 0.76);
+  font-size: 15px;
   font-weight: 500;
+  gap: 32px;
   transition:
     color 180ms ease,
     background-color 180ms ease,
     transform 180ms ease;
+}
+
+#navbar .h-12 > nav .link {
+  height: 36px !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  border-radius: 8px !important;
 }
 
 navbar-link:hover,
@@ -140,19 +230,15 @@ nav-tabs-item[data-active],
 }
 
 #topbar-cta-button > a {
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--orbit-ink-50), var(--orbit-ink-50)) padding-box,
-    linear-gradient(135deg, #ffb3cd 0%, #d9bdf2 48%, #9b5bff 100%) border-box;
+  border: none;
+  background: var(--orbit-ink-50);
   color: var(--orbit-ink-950);
   border-radius: 999px;
   font-weight: 700;
-  opacity: 1;
-  box-shadow: 0 12px 30px -18px rgba(255, 255, 255, 0.68);
+  box-shadow: none;
   transition:
     transform 180ms ease,
-    box-shadow 180ms ease,
-    filter 180ms ease;
+    opacity 180ms ease;
 }
 
 #topbar-cta-button > a span {
@@ -160,9 +246,8 @@ nav-tabs-item[data-active],
 }
 
 #topbar-cta-button > a:hover {
+  opacity: 0.85;
   transform: translateY(-1px);
-  filter: brightness(1.04);
-  box-shadow: 0 18px 38px -22px rgba(217, 189, 242, 0.75);
 }
 
 #search-bar-entry,
@@ -181,20 +266,30 @@ nav-tabs-item[data-active],
 
 #sidebar,
 #table-of-contents {
-  border-color: var(--orbit-border);
-  background: rgba(4, 9, 20, 0.38);
-  backdrop-filter: blur(12px);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 5, 14, 0.5);
+  backdrop-filter: blur(16px);
+}
+
+#navigation-items,
+#table-of-contents-content {
+  padding-top: 40px !important;
+}
+
+#navigation-items .mt-6,
+#navigation-items .lg\:mt-8 {
+  margin-top: 16px !important;
 }
 
 #sidebar-content li[data-active] {
   border-radius: 8px;
-  background: rgba(155, 91, 255, 0.16);
+  background: rgba(58, 179, 255, 0.16);
 }
 
 #sidebar-content li[data-active] a,
 toc-item[data-active],
 toc-item[data-active-deepest] {
-  color: var(--orbit-lavender);
+  color: #3AB3FF;
 }
 
 #page-title {
@@ -221,7 +316,7 @@ mdx-content h4 {
 
 mdx-content a,
 link {
-  color: var(--orbit-lavender);
+  color: #3AB3FF;
   text-underline-offset: 0.18em;
 }
 
@@ -263,6 +358,224 @@ footer,
 #footer {
   border-top: 1px solid var(--orbit-border);
   background: rgba(4, 9, 20, 0.42);
+}
+
+/* ─── Mobile: show navbar links as compact buttons ─── */
+@media (max-width: 1023px) {
+  /* Unwrap the hidden desktop nav row so we can access its children */
+  #navbar div.hidden.lg\:flex.h-12 {
+    display: contents !important;
+  }
+
+  /* Re-hide logo area and nav tabs from the desktop row */
+  #navbar div.hidden.lg\:flex.h-12 > .flex-1:first-child,
+  #navbar div.hidden.lg\:flex.h-12 > nav {
+    display: none !important;
+  }
+
+  /* Position the right container in the mobile nav bar */
+  #navbar .topbar-right-container {
+    position: fixed !important;
+    top: 3px !important;
+    right: 56px !important;
+    height: 69px !important;
+    z-index: 45 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+  }
+
+  /* Hide desktop search in mobile */
+  #navbar .topbar-right-container > div:first-child {
+    display: none !important;
+  }
+
+  /* Show navbar links — horizontal row */
+  #navbar .topbar-right-container ul {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px !important;
+    list-style: none !important;
+  }
+
+  #navbar .topbar-right-container .navbar-link {
+    display: flex !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Icon-only link buttons */
+  #navbar .topbar-right-container .navbar-link a {
+    display: block !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    text-indent: -9999px !important;
+    color: transparent !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  #navbar .topbar-right-container .navbar-link a::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 15px !important;
+    height: 15px !important;
+    background: rgba(250, 250, 250, 0.7) !important;
+    -webkit-mask-size: contain !important;
+    mask-size: contain !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    -webkit-mask-position: center !important;
+    mask-position: center !important;
+  }
+
+  /* Globe icon — Website */
+  #navbar .topbar-right-container .navbar-link:first-child a::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/%3E%3Cpath d='M2 12h20'/%3E%3C/svg%3E") !important;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/%3E%3Cpath d='M2 12h20'/%3E%3C/svg%3E") !important;
+  }
+
+  /* Layout-dashboard icon — Dashboard */
+  #navbar .topbar-right-container .navbar-link:nth-child(2) a::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='7' height='9' x='3' y='3' rx='1'/%3E%3Crect width='7' height='5' x='14' y='3' rx='1'/%3E%3Crect width='7' height='9' x='14' y='12' rx='1'/%3E%3Crect width='7' height='5' x='3' y='16' rx='1'/%3E%3C/svg%3E") !important;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='7' height='9' x='3' y='3' rx='1'/%3E%3Crect width='7' height='5' x='14' y='3' rx='1'/%3E%3Crect width='7' height='9' x='14' y='12' rx='1'/%3E%3Crect width='7' height='5' x='3' y='16' rx='1'/%3E%3C/svg%3E") !important;
+  }
+
+  /* CTA button — key icon */
+  #topbar-cta-button {
+    display: flex !important;
+  }
+
+  #topbar-cta-button > a {
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  #topbar-cta-button > a .flex {
+    font-size: 0 !important;
+    color: transparent !important;
+  }
+
+  #topbar-cta-button > a .flex::before {
+    content: "" !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 18px !important;
+    height: 18px !important;
+    background: var(--orbit-ink-950) !important;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4'/%3E%3Cpath d='m21 2-9.6 9.6'/%3E%3Ccircle cx='7.5' cy='15.5' r='5.5'/%3E%3C/svg%3E") !important;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4'/%3E%3Cpath d='m21 2-9.6 9.6'/%3E%3Ccircle cx='7.5' cy='15.5' r='5.5'/%3E%3C/svg%3E") !important;
+    -webkit-mask-size: contain !important;
+    mask-size: contain !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+  }
+
+  #topbar-cta-button > a span {
+    display: none !important;
+  }
+
+  #topbar-cta-button > a svg {
+    display: none !important;
+  }
+
+  /* Hide all ellipsis "More actions" buttons since we show links directly */
+  button[aria-label="More actions"] {
+    display: none !important;
+  }
+}
+
+/* Reduce top padding on content area for mobile */
+@media (max-width: 1023px) {
+  #content-area {
+    padding-top: 0 !important;
+  }
+}
+
+/* ─── Mobile nav: hamburger next to logo, menu slides from top ─── */
+@media (max-width: 1023px) {
+  /* Mobile nav row: match api-landing h-16 */
+  #navbar div.lg\:hidden.h-12 {
+    height: 70px !important;
+    padding-left: 16px !important;
+    padding-right: 60px !important;
+  }
+
+  /* Move sidebar toggle into nav bar, right side */
+  #navbar ~ button.h-14,
+  button.h-14.lg\:hidden {
+    position: fixed !important;
+    top: 3px !important;
+    right: 16px !important;
+    left: auto !important;
+    width: 36px !important;
+    height: 69px !important;
+    padding: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 50 !important;
+    background: transparent !important;
+  }
+
+  /* Hide breadcrumb text in toggle */
+  button.h-14.lg\:hidden > .ml-4 {
+    display: none !important;
+  }
+
+  /* Style hamburger icon to match api-landing */
+  button.h-14.lg\:hidden > div:first-child {
+    color: rgba(250, 250, 250, 0.7) !important;
+  }
+
+  button.h-14.lg\:hidden > div:first-child svg {
+    height: 16px !important;
+    width: 20px !important;
+  }
+
+  /* Reduce gap below logo/toggle in mobile sidebar */
+  #navigation-items {
+    padding-top: 2px !important;
+  }
+
+  /* Sidebar / mobile nav: slide from top, full width — below gradient */
+  #sidebar,
+  #mobile-nav,
+  #sidebar-content {
+    background: rgba(0, 5, 14, 0.5) !important;
+    backdrop-filter: blur(18px) !important;
+    border-color: var(--orbit-border) !important;
+  }
+
+  #sidebar-content {
+    top: 70px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-height: calc(100vh - 70px) !important;
+    border-radius: 0 0 16px 16px !important;
+    border-top: none !important;
+    border-bottom: 1px solid var(--orbit-border) !important;
+    box-shadow: 0 24px 80px -40px rgba(0, 0, 0, 0.9) !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

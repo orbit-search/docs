@@ -4,18 +4,18 @@
   "description": "Developer documentation for the Orbit Search API, API keys, directories, credits, and profile search workflows.",
   "theme": "luma",
   "logo": {
-    "light": "/assets/orbit-logo-light.svg",
-    "dark": "/assets/orbit-logo-dark.svg",
+    "light": "/assets/orbit-logo-mark.png",
+    "dark": "/assets/orbit-logo-mark.png",
     "href": "https://developer.orbitsearch.com"
   },
-  "favicon": {
-    "light": "/assets/orbit-logo-mark.png",
-    "dark": "/assets/orbit-logo-mark.png"
+  "favicon": "/assets/icon.png",
+  "metadata": {
+    "og:image": "/assets/opengraph-image.jpg"
   },
   "colors": {
-    "primary": "#9B5BFF",
-    "light": "#D9BDF2",
-    "dark": "#FF4E7A"
+    "primary": "#3AB3FF",
+    "light": "#3AB3FF",
+    "dark": "#3AB3FF"
   },
   "appearance": {
     "default": "dark",
@@ -27,7 +27,7 @@
   "background": {
     "color": {
       "light": "#FAFAFA",
-      "dark": "#040914"
+      "dark": "#00050E"
     }
   },
   "styling": {
