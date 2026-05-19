@@ -6,6 +6,8 @@ description: "Learn how Orbit Search interprets natural language, which request 
 
 Orbit Search accepts plain English queries and handles the hard parts — query understanding, semantic matching, entity resolution, and ranking — automatically. You send a query like `"founders in San Francisco"` and receive ranked profile results. There is no query language to learn and no schema to map against; the API infers your intent from the natural language you provide.
 
+If your integration already has structured filters, Smart Search also accepts a [structured DSL](/api/search/structured-dsl) through `structuredIntent`. Use it when you want to bypass natural-language parsing for known clauses while keeping a plain-English `query` for moderation, logging, summaries, match reasons, and search-quality training. Developer Deep Search uses the same DSL as its request contract.
+
 ## The search endpoint
 
 All search requests go to the same endpoint:
@@ -42,13 +44,14 @@ Include an `Idempotency-Key` header on every search request. If your client retr
 
 ## Request fields
 
-Every search request body has three fields:
+Smart Search request bodies use these fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string | Yes | A natural language description of who you are looking for |
 | `numUsers` | integer | Yes | How many results to return; must be a positive integer, maximum 100 |
 | `searchScope` | object | No | Constrains where the search runs; defaults to `global` if omitted |
+| `structuredIntent` | object | No | Optional structured DSL plan for Smart Search |
 
 `userId` and `searchId` are not accepted in smart-search developer API requests. Smart search returns one synchronous response. Developer Deep Search is the async search surface and exposes its own snapshot and SSE progress endpoints.
 

@@ -60,6 +60,10 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
   </Expandable>
 </ParamField>
 
+<ParamField body="structuredIntent" type="object">
+  Optional structured search DSL. Use this when your integration already knows the exact filters or semantic clauses to run. `query` is still required and should describe the same user intent in plain English. See [Structured DSL](/api/search/structured-dsl) for the full schema.
+</ParamField>
+
 <Note>
   - `userId` is not accepted in the request body.
   - `searchId` (search replay) is not accepted in the request body.
@@ -108,6 +112,50 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
     ```
   </Tab>
 </Tabs>
+
+### Structured DSL example
+
+Use `structuredIntent` to provide explicit search clauses while still sending a human-readable `query`:
+
+```json
+{
+  "query": "current OpenAI engineers in San Francisco with infrastructure experience",
+  "numUsers": 10,
+  "structuredIntent": {
+    "version": "v1",
+    "experiences": [
+      { "organization": "OpenAI", "title": "engineer", "temporalScope": "current" }
+    ],
+    "geo": { "place": "San Francisco", "distance": "50km" },
+    "semanticClauses": [{ "text": "infrastructure" }]
+  }
+}
+```
+
+The plain-English `query` is used for moderation, logging, summaries, match reasons, and search-quality training. It should align with `structuredIntent`; it does not need to restate every field.
+
+`entityClauses` are not public yet. The server rejects entity clauses and server-owned resolved fields.
+
+### Streaming variant
+
+```http
+POST /v2/social/profiles/searches/smart/sse
+```
+
+The SSE endpoint accepts the same request body as synchronous smart search, including `structuredIntent` and `searchScope`.
+
+```text
+event: initial
+data: {"status":"success","payload":{"users":[]}}
+
+event: search_id
+data: {"searchId":"uuid"}
+
+event: update
+data: {"userId":"USER_ID","matchReason":{"reason":"..."}}
+```
+
+Validation failures before the stream starts return regular JSON errors. After the stream starts, errors are emitted on the event stream.
 
 ## Response
 
@@ -164,6 +212,10 @@ Each successful smart search costs **2 credits** by default, regardless of `numU
     | `developer_num_users_limit_exceeded` | `numUsers` exceeds the maximum of 100 |
     | `developer_user_id_override_forbidden` | Request body includes a `userId` field, which is not permitted |
     | `developer_search_replay_unsupported` | Request body includes a `searchId` field; search replay is not supported for developer API keys |
+    | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
+    | `structured_intent_version_unsupported` | `structuredIntent.version` is not `"v1"` |
+    | `structured_intent_entity_clauses_unsupported` | `entityClauses` are not part of the public structured DSL |
+    | `structured_intent_server_owned_field` | Request body includes a server-owned structured intent field |
   </Accordion>
   <Accordion title="401 — Unauthorized">
     | Code | Description |

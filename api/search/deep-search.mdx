@@ -4,10 +4,7 @@ sidebarTitle: "Deep Search"
 description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
 ---
 
-Developer Deep Search starts asynchronous profile enrichment and returns IDs you can use to track progress. It supports two request modes:
-
-- **Singular generation** when you already know the person and have a URL.
-- **Arbitrary discovery** when you want Orbit to find one or more matching people from name, age, and search terms.
+Developer Deep Search starts asynchronous profile enrichment from a structured search intent and returns IDs you can use to track progress. Send the same public `structuredIntent` DSL used by Smart Search; Orbit converts it into the Deep Search arbitrary-discovery payload behind the API boundary.
 
 Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
 
@@ -37,56 +34,32 @@ POST /v2/developer/deep-search
 Send an `Idempotency-Key` for every new Deep Search request. Reusing the same key with the same body returns the existing run. Reusing it with a different body returns a `409`.
 </Tip>
 
-### Singular generation body
+### Request body
 
-Use singular generation when you already know the person and have a web URL:
-
-```json
-{
-  "name": "Jai Radhakrishnan",
-  "web_url": "https://www.linkedin.com/in/jai-radhakrishnan-288298193"
-}
-```
-
-<ParamField body="name" type="string" required>
-  Person name to generate.
-</ParamField>
-
-<ParamField body="web_url" type="string" required>
-  Public `http` or `https` URL associated with the person.
-</ParamField>
-
-If `name` and `web_url` are present, singular generation wins even when arbitrary-discovery fields are also present. LinkedIn profile URLs are forwarded to Deep Search as `linkedin_url`; other valid web URLs are forwarded as `level2_urls`.
-
-### Arbitrary discovery body
-
-Use arbitrary discovery when you want Orbit to find matching people first:
+Use structured intent when you want Orbit to find matching people and generate profiles:
 
 ```json
 {
-  "name": "Jai",
-  "age_range": "23-25",
-  "search_terms": ["works at Orbit Intelligence"]
+  "structuredIntent": {
+    "version": "v1",
+    "names": ["Jai"],
+    "experiences": [{ "organization": "Orbit Intelligence" }],
+    "demographics": { "ageRange": { "min": 23, "max": 25 } }
+  }
 }
 ```
 
-<ParamField body="name" type="string" required>
-  Person name or partial name to search for.
+<ParamField body="structuredIntent" type="object" required>
+  Structured search intent. `names[0]` is required as the person name. Experiences, schools, semantic clauses, geo text, and demographics become Deep Search discovery terms. `demographics.ageRange` maps to `age` or `age_range`; `demographics.birthYearRange` is converted into an approximate `age_range`.
 </ParamField>
 
-<ParamField body="search_terms" type="string[]">
-  Search terms that describe the person or context. Required unless `age` or `age_range` is present.
-</ParamField>
+Deep Search requires `structuredIntent.names[0]` plus at least one discovery signal that maps to search terms, `age`, or `age_range`.
 
-<ParamField body="age" type="number">
-  Exact age to use as a discovery signal.
-</ParamField>
+<Note>
+  Deep Search does not accept Smart Search's `query` field or the legacy top-level fields (`name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields). `entityClauses` are not part of the public structured DSL yet. Deep Search also does not have Smart Search's API-key user network or location context, so use Smart Search for strict `personalization.network` or `personalization.nearMe` behavior.
+</Note>
 
-<ParamField body="age_range" type="string">
-  Age range to use as a discovery signal, such as `"23-25"`.
-</ParamField>
-
-Arbitrary discovery requires `name` plus at least one of `search_terms`, `age`, or `age_range`. It can discover multiple candidate people and generate profiles for each candidate.
+Behind the API boundary, Orbit converts `structuredIntent` into the internal Deep Search arbitrary-discovery payload. Do not send internal Deep Search fields such as `person_name` or `arbitrary_search_terms` directly.
 
 ### 202 Accepted
 
@@ -190,9 +163,15 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_name_required` | `name` is missing or empty |
-    | `developer_deep_search_arbitrary_input_required` | Arbitrary discovery is missing `search_terms`, `age`, and `age_range` |
-    | `developer_deep_search_invalid_web_url` | `web_url` is not a valid `http` or `https` URL |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `structuredIntent` |
+    | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
+    | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
+    | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
+    | `structured_intent_required` | `structuredIntent` is missing |
+    | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
+    | `structured_intent_version_unsupported` | `structuredIntent.version` must be `"v1"` |
+    | `structured_intent_entity_clauses_unsupported` | `entityClauses` are not part of the public structured DSL |
+    | `structured_intent_server_owned_field` | The request includes a server-owned structured intent field |
   </Accordion>
   <Accordion title="402 - Payment required">
     | Code | Description |
@@ -232,7 +211,7 @@ curl -X POST "$API_BASE/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Jai","age_range":"23-25","search_terms":["works at Orbit Intelligence"]}'
+  -d '{"structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
 ```
 
 ```javascript JavaScript
@@ -244,8 +223,12 @@ const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    name: "Jai Radhakrishnan",
-    web_url: "https://www.linkedin.com/in/jai-radhakrishnan-288298193",
+    structuredIntent: {
+      version: "v1",
+      names: ["Jai"],
+      experiences: [{ organization: "Orbit Intelligence" }],
+      demographics: { ageRange: { min: 23, max: 25 } },
+    },
   }),
 });
 
@@ -265,9 +248,12 @@ response = requests.post(
         "Content-Type": "application/json",
     },
     json={
-        "name": "Jai",
-        "age_range": "23-25",
-        "search_terms": ["works at Orbit Intelligence"],
+        "structuredIntent": {
+            "version": "v1",
+            "names": ["Jai"],
+            "experiences": [{"organization": "Orbit Intelligence"}],
+            "demographics": {"ageRange": {"min": 23, "max": 25}},
+        },
     },
 )
 
