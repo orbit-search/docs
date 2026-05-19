@@ -1,0 +1,235 @@
+---
+title: "Structured search DSL"
+sidebarTitle: "Structured DSL"
+description: "Send explicit structured search intent to Orbit instead of relying only on natural-language parsing."
+---
+
+Use `structuredIntent` when your product already knows the search filters it wants to apply. For Smart Search, Orbit still requires a human-readable `query`; the structured intent is used as the search plan instead of asking Orbit to infer every clause from the query text. For Deep Search arbitrary discovery, the same structured intent envelope is translated into Deep Search's internal discovery inputs.
+
+Structured intent is supported on these developer API surfaces:
+
+```http
+POST /v2/social/profiles/searches/smart
+POST /v2/social/profiles/searches/smart/sse
+POST /v2/developer/deep-search
+```
+
+The same Smart Search request body works for global search and directory-scoped search. The API key must have `search:read`.
+
+## Contract Invariants
+
+| Surface | Required fields | Structured intent behavior |
+|---|---|---|
+| Smart Search | `query`, `numUsers` | `structuredIntent` is optional. When present, `query` still must describe the same user intent in plain English. |
+| Smart Search SSE | `query`, `numUsers` | Same request body as Smart Search. |
+| Deep Search | `structuredIntent.version`, `structuredIntent.names[0]`, and at least one discovery signal | `structuredIntent` is required. Legacy top-level fields are rejected. |
+
+`structuredIntent.version` is required and must be `"v1"`. The DSL fields are flat under `structuredIntent`; do not wrap them in an extra `intent` object.
+
+<Note>
+  `entityClauses` are not part of the public DSL yet. Do not send entity-resolution internals such as `resolvedCompanyFilters`, `resolvedSchoolFilters`, `resolvedEntityFilters`, or `entityClauses`; the server rejects those fields.
+</Note>
+
+## Smart Search Shape
+
+```json
+{
+  "query": "current OpenAI engineers in San Francisco with infrastructure experience",
+  "numUsers": 10,
+  "structuredIntent": {
+    "version": "v1",
+    "experiences": [
+      {
+        "organization": "OpenAI",
+        "title": "engineer",
+        "temporalScope": "current"
+      }
+    ],
+    "geo": {
+      "place": "San Francisco",
+      "distance": "50km"
+    },
+    "semanticClauses": [
+      {
+        "text": "infrastructure"
+      }
+    ]
+  }
+}
+```
+
+`query` remains required even with structured intent. It is used for moderation, logging, summaries, match reasons, and search-quality training. Do not duplicate every structured clause into prose; the query should describe the same user intent in plain English.
+
+## Deep Search Shape
+
+Deep Search accepts the same `structuredIntent` object on `POST /v2/developer/deep-search` when you are using arbitrary discovery:
+
+```json
+{
+  "structuredIntent": {
+    "version": "v1",
+    "names": ["Jai"],
+    "experiences": [{ "organization": "Orbit Intelligence" }],
+    "demographics": { "ageRange": { "min": 23, "max": 25 } }
+  }
+}
+```
+
+Deep Search maps `structuredIntent.names[0]` to the person name and converts experiences, schools, semantic clauses, location, and demographic text into discovery terms. `ageRange` maps to `age` or `age_range`; `birthYearRange` maps to an approximate `age_range`.
+
+Deep Search requires `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint.
+
+<Note>
+  Deep Search does not have Smart Search's API-key user network or location context, so use Smart Search for strict `personalization.network` or `personalization.nearMe` behavior.
+</Note>
+
+## Structured Intent Fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `structuredIntent.version` | string | Yes | Must be `"v1"` |
+| `structuredIntent.names` | string[] | Deep Search only | Person names to match. Deep Search requires `names[0]` |
+| `structuredIntent.experiences` | object[] | No | Work history filters |
+| `structuredIntent.schools` | object[] | No | Education filters |
+| `structuredIntent.semanticClauses` | object[] | No | Text concepts to match against profile evidence |
+| `structuredIntent.geo` | object | No | Current or historical location filter |
+| `structuredIntent.demographics` | object | No | Age, birth year, or gender filters |
+| `structuredIntent.personalization` | object | Smart Search only | Search relative to the API key user's network or location |
+
+## Experience clauses
+
+```json
+{
+  "experiences": [
+    {
+      "organization": "OpenAI",
+      "title": "engineer",
+      "titleAnyOf": ["engineer", "researcher"],
+      "year": 2024,
+      "startYear": 2020,
+      "startYearLte": 2021,
+      "endYear": 2024,
+      "temporalScope": "current"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `organization` | string | Company or organization name |
+| `title` | string | Role title |
+| `titleAnyOf` | string[] | Alternative role titles |
+| `year` | number | A year that should overlap the experience |
+| `startYear` | number | Exact start year |
+| `startYearLte` | number | Start year must be less than or equal to this value |
+| `endYear` | number | Exact end year |
+| `temporalScope` | string | `"current"`, `"historical"`, or `"both"` |
+
+## School clauses
+
+```json
+{
+  "schools": [
+    {
+      "school": "Stanford",
+      "schoolAnyOf": ["Stanford University"],
+      "graduationYear": 2014,
+      "startYear": 2010,
+      "endYear": 2014,
+      "temporalScope": "historical"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `school` | string | School name |
+| `schoolAnyOf` | string[] | Alternative school names |
+| `graduationYear` | number | Graduation year |
+| `startYear` | number | Education start year |
+| `endYear` | number | Education end year |
+| `temporalScope` | string | `"current"`, `"historical"`, or `"both"` |
+| `relation` | string | Optional advanced relation label |
+
+## Semantic clauses
+
+```json
+{
+  "semanticClauses": [
+    {
+      "text": "machine learning infrastructure"
+    }
+  ]
+}
+```
+
+Use `text` for the main profile evidence concept. Add `anyOf` only when aliases or sibling phrases should satisfy that same concept:
+
+```json
+{
+  "semanticClauses": [
+    {
+      "text": "machine learning infrastructure",
+      "anyOf": ["distributed training", "model serving"]
+    }
+  ]
+}
+```
+
+When both are set, Smart Search treats them as one semantic group: `text` is the canonical phrase, and `anyOf` adds alternatives for the same clause. Deep Search translates both the `text` phrase and each `anyOf` phrase into its internal arbitrary discovery terms.
+
+## Location and demographics
+
+```json
+{
+  "geo": {
+    "place": "San Francisco",
+    "distance": "50km",
+    "isHistorical": false
+  },
+  "demographics": {
+    "ageRange": { "min": 30, "max": 45 },
+    "birthYearRange": { "min": 1980, "max": 1995 },
+    "gender": "female"
+  }
+}
+```
+
+`ageRange` and `birthYearRange` require both `min` and `max`, and `min` must be less than or equal to `max`.
+
+## Personalization
+
+```json
+{
+  "personalization": {
+    "network": { "scope": "first_degree" },
+    "nearMe": { "distance": "25km" }
+  }
+}
+```
+
+`network.scope` currently supports `"first_degree"`. `nearMe` uses the API key user's location context when available.
+
+## Streaming
+
+The streaming endpoint accepts the same body:
+
+```bash
+curl -N -X POST "$API_BASE/v2/social/profiles/searches/smart/sse" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "current OpenAI engineers with infrastructure experience",
+    "numUsers": 10,
+    "structuredIntent": {
+      "version": "v1",
+      "experiences": [{ "organization": "OpenAI", "title": "engineer", "temporalScope": "current" }],
+      "semanticClauses": [{ "text": "infrastructure" }]
+    }
+  }'
+```
+
+The first `initial` event contains the same user payload returned by synchronous smart search. Additional `update` events can add match reasons for top results.
