@@ -125,8 +125,8 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
-    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 search requests per 60 seconds per API key (120 profile reads per 60 seconds). Back off and retry after the window resets. |
+    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for smart search, 10 for Deep Search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
+    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 search or Deep Search requests per 60 seconds per API key (120 profile reads per 60 seconds). Back off and retry after the window resets. |
 
     Credit-insufficient response example:
 
@@ -186,6 +186,21 @@ Your error handling should always read the `error.code` field to determine what 
     ```
   </Accordion>
 
+  <Accordion title="Developer Deep Search errors">
+    These errors are specific to `POST /v2/developer/deep-search`, `GET /v2/developer/deep-search/:id`, and `GET /v2/developer/deep-search/:id/events`.
+
+    | HTTP | Code | Description |
+    |------|------|-------------|
+    | 400 | `developer_deep_search_name_required` | The request is missing `name`. |
+    | 400 | `developer_deep_search_arbitrary_input_required` | An arbitrary discovery request is missing `search_terms`, `age`, and `age_range`. |
+    | 400 | `developer_deep_search_invalid_web_url` | `web_url` is not a valid `http` or `https` URL. |
+    | 404 | `developer_deep_search_run_not_found` | The run ID does not exist for this API key. |
+    | 409 | `developer_deep_search_idempotency_key_conflict` | An explicit `Idempotency-Key` was reused with different request parameters. |
+    | 409 | `developer_deep_search_credit_ledger_conflict` | A request-level retry matched an existing credit reservation with different request parameters. |
+    | 409 | `developer_deep_search_existing_charge_without_run` | A prior retry charge exists but no matching run record was found. Retry with a new idempotency key or contact support. |
+    | 502 | `developer_deep_search_enqueue_failed` | Deep Search did not accept the async enqueue request. Retry later. |
+  </Accordion>
+
   <Accordion title="Not found">
     | HTTP | Code | Description |
     |------|------|-------------|
@@ -206,10 +221,11 @@ Your error handling should always read the `error.code` field to determine what 
 
 | Status | Codes |
 |--------|-------|
-| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `search_directory_cross_org_scope_unsupported` |
+| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `search_directory_cross_org_scope_unsupported`, `developer_deep_search_name_required`, `developer_deep_search_arbitrary_input_required`, `developer_deep_search_invalid_web_url` |
 | 401 | `missing_api_key` |
 | 402 | `developer_api_credits_insufficient` |
 | 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `search_directory_access_api_key_forbidden` |
-| 404 | `developer_profile_not_found`, `search_directory_not_found` |
-| 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded` |
+| 404 | `developer_profile_not_found`, `search_directory_not_found`, `developer_deep_search_run_not_found` |
+| 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded`, `developer_deep_search_idempotency_key_conflict`, `developer_deep_search_credit_ledger_conflict`, `developer_deep_search_existing_charge_without_run` |
 | 429 | `developer_api_key_rate_limited` |
+| 502 | `developer_deep_search_enqueue_failed` |
