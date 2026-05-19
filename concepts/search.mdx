@@ -50,7 +50,7 @@ Every search request body has three fields:
 | `numUsers` | integer | Yes | How many results to return; must be a positive integer, maximum 100 |
 | `searchScope` | object | No | Constrains where the search runs; defaults to `global` if omitted |
 
-`userId` and `searchId` are not accepted in developer API requests. SSE (server-sent events) endpoints are not part of the developer API surface.
+`userId` and `searchId` are not accepted in smart-search developer API requests. Smart search returns one synchronous response. Developer Deep Search is the async search surface and exposes its own snapshot and SSE progress endpoints.
 
 ## Search scopes
 

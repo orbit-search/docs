@@ -95,6 +95,7 @@
             "group": "Search",
             "pages": [
               "api/search/smart-search",
+              "api/search/deep-search",
               "api/search/profile-read"
             ]
           },

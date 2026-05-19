@@ -1,0 +1,278 @@
+---
+title: "POST /v2/developer/deep-search - enrich profiles"
+sidebarTitle: "Deep Search"
+description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
+---
+
+Developer Deep Search starts asynchronous profile enrichment and returns IDs you can use to track progress. It supports two request modes:
+
+- **Singular generation** when you already know the person and have a URL.
+- **Arbitrary discovery** when you want Orbit to find one or more matching people from name, age, and search terms.
+
+Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
+
+## Authentication
+
+Include your developer API key in every request. The key must have the `search:read` scope.
+
+```http
+Authorization: Bearer sk_orb_...
+```
+
+## Start a run
+
+```http
+POST /v2/developer/deep-search
+```
+
+### Headers
+
+| Header | Required | Description |
+|---|---|---|
+| `Authorization` | Yes | `Bearer sk_orb_...` with `search:read` scope |
+| `Content-Type` | Yes | `application/json` |
+| `Idempotency-Key` | Recommended | Client-generated key for safe retries |
+
+<Tip>
+Send an `Idempotency-Key` for every new Deep Search request. Reusing the same key with the same body returns the existing run. Reusing it with a different body returns a `409`.
+</Tip>
+
+### Singular generation body
+
+Use singular generation when you already know the person and have a web URL:
+
+```json
+{
+  "name": "Jai Radhakrishnan",
+  "web_url": "https://www.linkedin.com/in/jai-radhakrishnan-288298193"
+}
+```
+
+<ParamField body="name" type="string" required>
+  Person name to generate.
+</ParamField>
+
+<ParamField body="web_url" type="string" required>
+  Public `http` or `https` URL associated with the person.
+</ParamField>
+
+If `name` and `web_url` are present, singular generation wins even when arbitrary-discovery fields are also present. LinkedIn profile URLs are forwarded to Deep Search as `linkedin_url`; other valid web URLs are forwarded as `level2_urls`.
+
+### Arbitrary discovery body
+
+Use arbitrary discovery when you want Orbit to find matching people first:
+
+```json
+{
+  "name": "Jai",
+  "age_range": "23-25",
+  "search_terms": ["works at Orbit Intelligence"]
+}
+```
+
+<ParamField body="name" type="string" required>
+  Person name or partial name to search for.
+</ParamField>
+
+<ParamField body="search_terms" type="string[]">
+  Search terms that describe the person or context. Required unless `age` or `age_range` is present.
+</ParamField>
+
+<ParamField body="age" type="number">
+  Exact age to use as a discovery signal.
+</ParamField>
+
+<ParamField body="age_range" type="string">
+  Age range to use as a discovery signal, such as `"23-25"`.
+</ParamField>
+
+Arbitrary discovery requires `name` plus at least one of `search_terms`, `age`, or `age_range`. It can discover multiple candidate people and generate profiles for each candidate.
+
+### 202 Accepted
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "arbitrary",
+    "status": "processing",
+    "stage": "queued",
+    "search_id": "DEEP_SEARCH_ID",
+    "job_id": "DEEP_SEARCH_JOB_ID",
+    "cluster_group_id": "CLUSTER_GROUP_ID",
+    "progress_url": "/v2/developer/deep-search/RUN_UUID",
+    "events_url": "/v2/developer/deep-search/RUN_UUID/events",
+    "result": {
+      "profile_ids": []
+    }
+  }
+}
+```
+
+The response contains identifiers only. Use `progress_url` or `events_url` to track sources, candidates, generation stage, and final profile IDs.
+
+## Get a progress snapshot
+
+```http
+GET /v2/developer/deep-search/:id
+```
+
+Snapshot reads require the same API key that created the run.
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "arbitrary",
+    "status": "processing",
+    "stage": "generating_candidates",
+    "sources_unassigned": [],
+    "candidates": [
+      {
+        "cluster_id": "cluster-1",
+        "child_search_id": "child-search-1",
+        "status": "processing",
+        "stage": "generating_profile",
+        "progress_percent": 75,
+        "sources": [
+          {
+            "id": "source-1",
+            "url": "https://example.com/jai",
+            "title": "Jai at Orbit Intelligence",
+            "snippet": "Public source excerpt",
+            "source_type": "web"
+          }
+        ],
+        "profile_ids": {
+          "orbit_id": null,
+          "sendit_id": null
+        }
+      }
+    ],
+    "result": {
+      "profile_ids": []
+    }
+  }
+}
+```
+
+Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `saving_profile`, `completed`, and `failed`.
+
+## Stream progress with SSE
+
+```http
+GET /v2/developer/deep-search/:id/events
+```
+
+The events endpoint emits `progress` events whenever the public snapshot changes, followed by a terminal `completed` or `failed` event.
+
+```text
+event: progress
+data: {"status":"success","payload":{"id":"RUN_UUID","stage":"finding_sources"}}
+
+event: completed
+data: {"status":"success","payload":{"id":"RUN_UUID","status":"completed"}}
+```
+
+Reconnect with the same run ID to continue tracking progress. Already-terminal runs emit their terminal snapshot immediately. If the stream emits an `error` event or disconnects before a terminal event, keep the run ID and fall back to `GET /v2/developer/deep-search/:id`; snapshot reads are the recovery path for transient streaming or upstream progress-broker issues.
+
+## Credits and rate limits
+
+Each accepted Deep Search run costs **10 credits**. Snapshot and SSE reads are rate-limited but do not create new Deep Search runs or consume credits.
+
+Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** per API key by default. This applies to start, snapshot, and events requests.
+
+## Error responses
+
+<AccordionGroup>
+  <Accordion title="400 - Bad request">
+    | Code | Description |
+    |---|---|
+    | `developer_deep_search_name_required` | `name` is missing or empty |
+    | `developer_deep_search_arbitrary_input_required` | Arbitrary discovery is missing `search_terms`, `age`, and `age_range` |
+    | `developer_deep_search_invalid_web_url` | `web_url` is not a valid `http` or `https` URL |
+  </Accordion>
+  <Accordion title="402 - Payment required">
+    | Code | Description |
+    |---|---|
+    | `developer_api_credits_insufficient` | Your remaining credits are lower than the 10 credits required to start a run |
+  </Accordion>
+  <Accordion title="404 - Not found">
+    | Code | Description |
+    |---|---|
+    | `developer_deep_search_run_not_found` | The run ID does not exist for this API key |
+  </Accordion>
+  <Accordion title="409 - Conflict">
+    | Code | Description |
+    |---|---|
+    | `developer_deep_search_idempotency_key_conflict` | An explicit `Idempotency-Key` was reused with a different body |
+    | `developer_deep_search_credit_ledger_conflict` | A request-level retry matched an existing credit reservation with different request parameters |
+    | `developer_deep_search_existing_charge_without_run` | A prior retry charge exists but no matching run record was found |
+  </Accordion>
+  <Accordion title="429 - Rate limited">
+    | Code | Description |
+    |---|---|
+    | `developer_api_key_rate_limited` | The API key exceeded the search rate limit |
+  </Accordion>
+  <Accordion title="502 - Upstream error">
+    | Code | Description |
+    |---|---|
+    | `developer_deep_search_enqueue_failed` | Deep Search did not accept the async enqueue request |
+  </Accordion>
+</AccordionGroup>
+
+## Code examples
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/developer/deep-search" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Jai","age_range":"23-25","search_terms":["works at Orbit Intelligence"]}'
+```
+
+```javascript JavaScript
+const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Idempotency-Key": crypto.randomUUID(),
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    name: "Jai Radhakrishnan",
+    web_url: "https://www.linkedin.com/in/jai-radhakrishnan-288298193",
+  }),
+});
+
+const data = await response.json();
+console.log(data.payload.id, data.payload.events_url);
+```
+
+```python Python
+import uuid
+import requests
+
+response = requests.post(
+    f"{API_BASE}/v2/developer/deep-search",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Idempotency-Key": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    },
+    json={
+        "name": "Jai",
+        "age_range": "23-25",
+        "search_terms": ["works at Orbit Intelligence"],
+    },
+)
+
+data = response.json()
+print(data["payload"]["id"])
+```
+
+</CodeGroup>
