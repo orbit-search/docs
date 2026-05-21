@@ -4,7 +4,7 @@ sidebarTitle: "Deep Search"
 description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
 ---
 
-Developer Deep Search starts asynchronous profile enrichment from a structured search intent and returns IDs you can use to track progress. Send the same public `structuredIntent` DSL used by Smart Search; Orbit converts it into the Deep Search arbitrary-discovery payload behind the API boundary.
+Developer Deep Search starts asynchronous profile enrichment from an email or LinkedIn seed, or from a structured search intent, and returns IDs you can use to track progress. Send `email` and/or `linkedinUrl` for direct profile generation, or send the same public `structuredIntent` DSL used by Smart Search for arbitrary discovery.
 
 Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
 
@@ -36,6 +36,15 @@ Send an `Idempotency-Key` for every new Deep Search request. Reusing the same ke
 
 ### Request body
 
+Use email or LinkedIn when you already have a direct identity seed:
+
+```json
+{
+  "email": "jane@example.com",
+  "linkedinUrl": "https://www.linkedin.com/in/janedoe"
+}
+```
+
 Use structured intent when you want Orbit to find matching people and generate profiles:
 
 ```json
@@ -49,11 +58,19 @@ Use structured intent when you want Orbit to find matching people and generate p
 }
 ```
 
-<ParamField body="structuredIntent" type="object" required>
+<ParamField body="email" type="string">
+  Optional email address to use as a Deep Search generation seed. Send `email`, `linkedinUrl`, or both for profile generation.
+</ParamField>
+
+<ParamField body="linkedinUrl" type="string">
+  Optional LinkedIn profile URL to use as a Deep Search generation seed. Send `linkedinUrl`, `email`, or both for profile generation.
+</ParamField>
+
+<ParamField body="structuredIntent" type="object">
   Structured search intent. `names[0]` is required as the person name. Experiences, schools, semantic clauses, geo text, and demographics become Deep Search discovery terms. `demographics.ageRange` maps to `age` or `age_range`; `demographics.birthYearRange` is converted into an approximate `age_range`.
 </ParamField>
 
-Deep Search requires `structuredIntent.names[0]` plus at least one discovery signal that maps to search terms, `age`, or `age_range`.
+Structured discovery requires `structuredIntent.names[0]` plus at least one discovery signal that maps to search terms, `age`, or `age_range`.
 
 <Note>
   Deep Search does not accept Smart Search's `query` field or the legacy top-level fields (`name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields). `entityClauses` are not part of the public structured DSL yet. Deep Search also does not have Smart Search's API-key user network or location context, so use Smart Search for strict `personalization.network` or `personalization.nearMe` behavior.
@@ -62,6 +79,30 @@ Deep Search requires `structuredIntent.names[0]` plus at least one discovery sig
 Behind the API boundary, Orbit converts `structuredIntent` into the internal Deep Search arbitrary-discovery payload. Do not send internal Deep Search fields such as `person_name` or `arbitrary_search_terms` directly.
 
 ### 202 Accepted
+
+Email/LinkedIn seed requests return `mode: "generation"`:
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "generation",
+    "status": "processing",
+    "stage": "queued",
+    "search_id": "DEEP_SEARCH_ID",
+    "job_id": "DEEP_SEARCH_JOB_ID",
+    "cluster_group_id": null,
+    "progress_url": "/v2/developer/deep-search/RUN_UUID",
+    "events_url": "/v2/developer/deep-search/RUN_UUID/events",
+    "result": {
+      "profile_ids": []
+    }
+  }
+}
+```
+
+Structured discovery requests return `mode: "arbitrary"`:
 
 ```json
 {
@@ -163,11 +204,15 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `structuredIntent` |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `email`, `linkedinUrl`, or `structuredIntent` |
+    | `developer_deep_search_input_required` | The body is missing `email`, `linkedinUrl`, or `structuredIntent` |
+    | `developer_deep_search_email_invalid` | `email` is malformed |
+    | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
+    | `developer_deep_search_input_conflict` | The body includes both a profile generation seed and `structuredIntent` |
     | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
     | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
-    | `structured_intent_required` | `structuredIntent` is missing |
+    | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
     | `structured_intent_version_unsupported` | `structuredIntent.version` must be `"v1"` |
     | `structured_intent_entity_clauses_unsupported` | `entityClauses` are not part of the public structured DSL |
@@ -203,6 +248,61 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
 </AccordionGroup>
 
 ## Code examples
+
+Direct profile generation from email/LinkedIn seeds:
+
+<CodeGroup>
+
+```bash curl
+curl -X POST "$API_BASE/v2/developer/deep-search" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane@example.com","linkedinUrl":"https://www.linkedin.com/in/janedoe"}'
+```
+
+```javascript JavaScript
+const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Idempotency-Key": crypto.randomUUID(),
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: "jane@example.com",
+    linkedinUrl: "https://www.linkedin.com/in/janedoe",
+  }),
+});
+
+const data = await response.json();
+console.log(data.payload.id, data.payload.mode);
+```
+
+```python Python
+import uuid
+import requests
+
+response = requests.post(
+    f"{API_BASE}/v2/developer/deep-search",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Idempotency-Key": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    },
+    json={
+        "email": "jane@example.com",
+        "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+    },
+)
+
+data = response.json()
+print(data["payload"]["id"], data["payload"]["mode"])
+```
+
+</CodeGroup>
+
+Arbitrary discovery from structured intent:
 
 <CodeGroup>
 

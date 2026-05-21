@@ -22,7 +22,7 @@ The same Smart Search request body works for global search and directory-scoped 
 |---|---|---|
 | Smart Search | `query`, `numUsers` | `structuredIntent` is optional. When present, `query` still must describe the same user intent in plain English. |
 | Smart Search SSE | `query`, `numUsers` | Same request body as Smart Search. |
-| Deep Search | `structuredIntent.version`, `structuredIntent.names[0]`, and at least one discovery signal | `structuredIntent` is required. Legacy top-level fields are rejected. |
+| Deep Search | `email` or `linkedinUrl`, or `structuredIntent.version`, `structuredIntent.names[0]`, and at least one discovery signal | Send either profile generation seed(s) or `structuredIntent`. Legacy top-level fields are rejected. |
 
 `structuredIntent.version` is required and must be `"v1"`. The DSL fields are flat under `structuredIntent`; do not wrap them in an extra `intent` object.
 
@@ -62,7 +62,16 @@ The same Smart Search request body works for global search and directory-scoped 
 
 ## Deep Search Shape
 
-Deep Search accepts the same `structuredIntent` object on `POST /v2/developer/deep-search` when you are using arbitrary discovery:
+Deep Search accepts `email` and/or `linkedinUrl` seeds for direct profile generation, or the same `structuredIntent` object on `POST /v2/developer/deep-search` when you are using arbitrary discovery. Send exactly one request shape; combining seed fields with `structuredIntent` returns `developer_deep_search_input_conflict`.
+
+```json
+{
+  "email": "jane@example.com",
+  "linkedinUrl": "https://www.linkedin.com/in/janedoe"
+}
+```
+
+Or, for arbitrary discovery:
 
 ```json
 {
@@ -77,7 +86,7 @@ Deep Search accepts the same `structuredIntent` object on `POST /v2/developer/de
 
 Deep Search maps `structuredIntent.names[0]` to the person name and converts experiences, schools, semantic clauses, location, and demographic text into discovery terms. `ageRange` maps to `age` or `age_range`; `birthYearRange` maps to an approximate `age_range`.
 
-Deep Search requires `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint.
+Deep Search requires `email`, `linkedinUrl`, or `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint.
 
 <Note>
   Deep Search does not have Smart Search's API-key user network or location context, so use Smart Search for strict `personalization.network` or `personalization.nearMe` behavior.
@@ -232,4 +241,4 @@ curl -N -X POST "$API_BASE/v2/social/profiles/searches/smart/sse" \
   }'
 ```
 
-The first `initial` event contains the same user payload returned by synchronous smart search. Additional `update` events can add match reasons for top results.
+The first `initial` event contains the same user payload returned by synchronous smart search. If `includeMatchReason` is `true`, additional `update` events can add match reasons for top results.
