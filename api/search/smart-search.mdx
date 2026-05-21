@@ -64,6 +64,10 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
   Optional structured search DSL. Use this when your integration already knows the exact filters or semantic clauses to run. `query` is still required and should describe the same user intent in plain English. See [Structured DSL](/api/search/structured-dsl) for the full schema.
 </ParamField>
 
+<ParamField body="includeMatchReason" type="boolean">
+  Set to `true` to generate match reasons for top results. Defaults to `false`.
+</ParamField>
+
 <Note>
   - `userId` is not accepted in the request body.
   - `searchId` (search replay) is not accepted in the request body.
@@ -79,7 +83,8 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
     ```json
     {
       "query": "founders in sf",
-      "numUsers": 10
+      "numUsers": 10,
+      "includeMatchReason": true
     }
     ```
   </Tab>
@@ -143,6 +148,7 @@ POST /v2/social/profiles/searches/smart/sse
 ```
 
 The SSE endpoint accepts the same request body as synchronous smart search, including `structuredIntent` and `searchScope`.
+Send `includeMatchReason: true` when you want post-initial `update` events with match reasons.
 
 ```text
 event: initial
