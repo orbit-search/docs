@@ -1,7 +1,7 @@
 ---
 title: "Run your first search and read a profile with Orbit"
 sidebarTitle: "First request"
-description: "Go from zero to receiving profile results with Orbit Search — get an API key, run a smart search, and fetch a full profile record in minutes."
+description: "Go from zero to receiving profile results with Orbit Search — get an API key, run a search, and fetch a full profile record in minutes."
 ---
 
 The Orbit Search API lets you query a global index of public professional profiles using natural-language queries. This guide walks you through every step: getting an API key, running your first search request, reading the response, and fetching a complete profile for any result you get back.
@@ -26,12 +26,12 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
   </Step>
 
   <Step title="Run a global search">
-    Send a `POST` request to the smart search endpoint. The `query` and `numUsers` fields are both required.
+    Send a `POST` request to the developer search endpoint. The `query` and `numUsers` fields are both required.
 
     <CodeGroup>
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+    curl -X POST "$API_BASE/v2/developer/search" \
       -H "Authorization: Bearer $ORBIT_API_KEY" \
       -H "Idempotency-Key: $(uuidgen)" \
       -H "Content-Type: application/json" \
@@ -40,7 +40,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/social/profiles/searches/smart`,
+      `${API_BASE}/v2/developer/search`,
       {
         method: "POST",
         headers: {
@@ -93,7 +93,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     ```bash curl
     # Extract userId from the first search result and fetch its profile
     SEARCH_RESPONSE=$(
-      curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+      curl -s -X POST "$API_BASE/v2/developer/search" \
         -H "Authorization: Bearer $ORBIT_API_KEY" \
         -H "Content-Type: application/json" \
         -d '{"query": "founders in sf", "numUsers": 10}'
@@ -107,7 +107,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 
     ```javascript JavaScript
     const searchRes = await fetch(
-      `${API_BASE}/v2/social/profiles/searches/smart`,
+      `${API_BASE}/v2/developer/search`,
       {
         method: "POST",
         headers: {

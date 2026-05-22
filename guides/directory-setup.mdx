@@ -157,12 +157,12 @@ Search Directories let you build a private, searchable corpus of people data ins
   </Step>
 
   <Step title="Search your directory">
-    Run a scoped smart search against your directory by setting `searchScope.type` to `"directory"` and providing the `directoryId`. Use your **organization API key** for this request.
+    Run a scoped search against your directory by setting `searchScope.type` to `"directory"` and providing the `directoryId`. Use your **organization API key** for this request.
 
     <CodeGroup>
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+    curl -X POST "$API_BASE/v2/developer/search" \
       -H "Authorization: Bearer $ORG_API_KEY" \
       -H "Idempotency-Key: $(uuidgen)" \
       -H "Content-Type: application/json" \
@@ -178,7 +178,7 @@ Search Directories let you build a private, searchable corpus of people data ins
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/social/profiles/searches/smart`,
+      `${API_BASE}/v2/developer/search`,
       {
         method: "POST",
         headers: {

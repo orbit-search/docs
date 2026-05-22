@@ -49,7 +49,7 @@ If none of those grants match, directory-scoped search returns an authorization 
 Use an organization key exactly like a personal key: pass it as a bearer token.
 
 ```bash
-curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+curl -X POST "$API_BASE/v2/developer/search" \
   -H "Authorization: Bearer $ORG_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

@@ -10,7 +10,7 @@ Orbit Search uses a credit system to meter API usage. Credits are consumed per s
 
 | Operation | Credits |
 |---|---|
-| Smart search (`POST /v2/social/profiles/searches/smart`) | 2 per successful search |
+| Search (`POST /v2/developer/search`, `POST /v2/developer/search/sse`) | 2 per successful search |
 | Deep Search (`POST /v2/developer/deep-search`) | 10 per accepted run |
 | Profile read (`GET /v2/developer/profiles/:id`) | 1 per successful read |
 
@@ -72,7 +72,7 @@ Send an `Idempotency-Key` header on every search and profile read request. When 
 Use a unique key per logical request — a UUID or a client-generated request ID works well:
 
 ```bash
-curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+curl -X POST "$API_BASE/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: 7f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c" \
   -H "Content-Type: application/json" \
@@ -94,7 +94,7 @@ Rate limits are enforced per API key, not per IP address. Hitting a rate limit r
 
 | Endpoint | Default limit |
 |---|---|
-| Smart search | 60 requests per 60 seconds |
+| Search (`POST /v2/developer/search`, `POST /v2/developer/search/sse`) | 60 requests per 60 seconds |
 | Deep Search start, snapshot, and events | 60 requests per 60 seconds |
 | Profile read | 120 requests per 60 seconds |
 

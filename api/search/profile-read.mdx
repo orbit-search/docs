@@ -1,10 +1,10 @@
 ---
 title: "GET /v2/developer/profiles/:id — fetch a profile"
 sidebarTitle: "Profile read"
-description: "Fetch the public profile DTO for a single Orbit user by ID. Use profile IDs returned from smart search results to retrieve structured profile data."
+description: "Fetch the public profile DTO for a single Orbit user by ID. Use profile IDs returned from search results to retrieve structured profile data."
 ---
 
-The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `userId` field in smart search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
+The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `userId` field in search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
 
 ## Authentication
 
@@ -23,7 +23,7 @@ GET /v2/developer/profiles/:id
 ### Path parameters
 
 <ParamField path="id" type="string" required>
-  The profile ID to fetch. This is the `userId` value returned in the `payload.users` array from a [Smart Search](/api/search/smart-search) response.
+  The profile ID to fetch. This is the `userId` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response.
 </ParamField>
 
 ## Response
@@ -184,13 +184,13 @@ Each successful profile read costs **1 credit**. Reads that return `developer_pr
 
 ## Code example
 
-The example below shows the full search-to-profile-read flow: run a smart search, extract the first profile ID from the response, then fetch the full profile.
+The example below shows the full search-to-profile-read flow: run a search, extract the first profile ID from the response, then fetch the full profile.
 
 <CodeGroup>
 
 ```bash curl
 SEARCH_RESPONSE=$(
-  curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  curl -s -X POST "$API_BASE/v2/developer/search" \
     -H "Authorization: Bearer sk_orb_REDACTED" \
     -H "Content-Type: application/json" \
     -d '{"query":"founders in sf","numUsers":10}'
@@ -203,9 +203,9 @@ curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
 ```
 
 ```javascript JavaScript
-// Step 1: run a smart search
+// Step 1: run a search
 const searchResponse = await fetch(
-  `${API_BASE}/v2/social/profiles/searches/smart`,
+  `${API_BASE}/v2/developer/search`,
   {
     method: "POST",
     headers: {
@@ -236,9 +236,9 @@ console.log(profile.payload.displayName);
 ```python Python
 import requests
 
-# Step 1: run a smart search
+# Step 1: run a search
 search_response = requests.post(
-    f"{API_BASE}/v2/social/profiles/searches/smart",
+    f"{API_BASE}/v2/developer/search",
     headers={
         "Authorization": "Bearer sk_orb_REDACTED",
         "Content-Type": "application/json",

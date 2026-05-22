@@ -1,10 +1,10 @@
 ---
-title: "POST /v2/social/profiles/searches/smart — search"
-sidebarTitle: "Smart search"
-description: "Run a natural language smart search against Orbit's people index. Returns ranked profiles. Supports global and directory scopes. Costs 2 credits per result."
+title: "POST /v2/developer/search — search"
+sidebarTitle: "Search"
+description: "Run a natural language search against Orbit's people index. Returns ranked profiles. Supports global and directory scopes. Costs 2 credits per successful request."
 ---
 
-The smart search endpoint accepts a plain English query and returns a ranked list of matching profiles. Orbit resolves your query through structured, semantic, and agentic search modes automatically — you don't need to specify a mode. Each successful request costs credits; requests that return no results or fail validation are refunded.
+The search endpoint accepts a plain English query and returns a ranked list of matching profiles. Orbit resolves your query through structured, semantic, and agentic search modes automatically — you don't need to specify a mode. Each successful request costs credits; requests that return no results or fail validation are refunded.
 
 ## Authentication
 
@@ -17,7 +17,8 @@ Authorization: Bearer sk_orb_...
 ## Request
 
 ```http
-POST /v2/social/profiles/searches/smart
+POST /v2/developer/search
+POST /v2/developer/search/sse
 ```
 
 ### Headers
@@ -141,14 +142,17 @@ The plain-English `query` is used for moderation, logging, summaries, match reas
 
 `entityClauses` are not public yet. The server rejects entity clauses and server-owned resolved fields.
 
-### Streaming variant
+## Streaming
 
-```http
-POST /v2/social/profiles/searches/smart/sse
+Use `POST /v2/developer/search/sse` when you want the initial results immediately and match-reason updates as they are generated. The SSE endpoint accepts the same request body as synchronous search, including `structuredIntent`, `searchScope`, and `includeMatchReason`.
+
+```bash
+curl -N -X POST "$API_BASE/v2/developer/search/sse" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10,"includeMatchReason":true}'
 ```
-
-The SSE endpoint accepts the same request body as synchronous smart search, including `structuredIntent` and `searchScope`.
-Send `includeMatchReason: true` when you want post-initial `update` events with match reasons.
 
 ```text
 event: initial
@@ -161,7 +165,7 @@ event: update
 data: {"userId":"USER_ID","matchReason":{"reason":"..."}}
 ```
 
-Validation failures before the stream starts return regular JSON errors. After the stream starts, errors are emitted on the event stream.
+Validation, authentication, rate-limit, and credit failures before the stream starts return regular JSON errors. After the stream starts, errors are emitted on the event stream.
 
 ## Response
 
@@ -201,7 +205,7 @@ Validation failures before the stream starts return regular JSON errors. After t
 
 ## Credits
 
-Each successful smart search costs **2 credits** by default, regardless of `numUsers`. Credits are reserved before the search runs, so out-of-credit requests fail immediately without consuming search resources. If a search returns no results or fails, the reservation is refunded.
+Each successful search costs **2 credits** by default, regardless of `numUsers` or whether you use the synchronous or SSE endpoint. Credits are reserved before the search runs, so out-of-credit requests fail immediately without consuming search resources. If a search returns no results or fails, the reservation is refunded.
 
 ## Rate limits
 
@@ -265,7 +269,7 @@ Each successful smart search costs **2 credits** by default, regardless of `numU
 <CodeGroup>
 
 ```bash curl
-curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+curl -X POST "$API_BASE/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
@@ -273,7 +277,7 @@ curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
 ```
 
 ```javascript JavaScript
-const response = await fetch(`${API_BASE}/v2/social/profiles/searches/smart`, {
+const response = await fetch(`${API_BASE}/v2/developer/search`, {
   method: "POST",
   headers: {
     "Authorization": "Bearer sk_orb_REDACTED",
@@ -294,7 +298,7 @@ console.log(data.payload.users);
 import requests
 
 response = requests.post(
-    f"{API_BASE}/v2/social/profiles/searches/smart",
+    f"{API_BASE}/v2/developer/search",
     headers={
         "Authorization": "Bearer sk_orb_REDACTED",
         "Idempotency-Key": "request-uuid-or-client-retry-key",
