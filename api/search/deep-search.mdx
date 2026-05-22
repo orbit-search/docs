@@ -67,16 +67,14 @@ Use structured intent when you want Orbit to find matching people and generate p
 </ParamField>
 
 <ParamField body="structuredIntent" type="object">
-  Structured search intent. `names[0]` is required as the person name. Experiences, schools, semantic clauses, geo text, and demographics become Deep Search discovery terms. `demographics.ageRange` maps to `age` or `age_range`; `demographics.birthYearRange` is converted into an approximate `age_range`.
+  Structured search intent. `names[0]` is required as the person name. Experiences, schools, semantic clauses, geo text, age range, and birth-year range are used as discovery criteria.
 </ParamField>
 
-Structured discovery requires `structuredIntent.names[0]` plus at least one discovery signal that maps to search terms, `age`, or `age_range`.
+Structured discovery requires `structuredIntent.names[0]` plus at least one supported discovery signal, such as an experience, school, semantic clause, geo place, age range, or birth-year range. Gender is not a Deep Search discovery signal by itself.
 
 <Note>
-  Deep Search does not accept Search's `query` field or the legacy top-level fields (`name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields). `entityClauses` are not part of the public structured DSL yet. Deep Search also does not have the synchronous search endpoint's API-key user network or location context, so use `POST /v2/developer/search` for strict `personalization.network` or `personalization.nearMe` behavior.
+  Put freeform discovery text in `structuredIntent.semanticClauses`; do not send it as top-level clauses. `entityClauses` are not part of the public structured DSL yet. Use `POST /v2/developer/search` when you need personalized network or near-me search behavior.
 </Note>
-
-Behind the API boundary, Orbit converts `structuredIntent` into the internal Deep Search arbitrary-discovery payload. Do not send internal Deep Search fields such as `person_name` or `arbitrary_search_terms` directly.
 
 ### 202 Accepted
 
@@ -210,7 +208,7 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
     | `developer_deep_search_input_conflict` | The body includes both a profile generation seed and `structuredIntent` |
     | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
-    | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
+    | `developer_deep_search_arbitrary_input_required` | `structuredIntent` must include a name plus at least one experience, education, location, profile URL, or semantic clause |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
