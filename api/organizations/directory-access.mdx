@@ -65,7 +65,7 @@ curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY
 Use `searchScope.type: "directory"` with the directory UUID:
 
 ```bash curl
-curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+curl -X POST "$API_BASE/v2/developer/search" \
   -H "Authorization: Bearer $ORG_API_KEY" \
   -H "Idempotency-Key: $(uuidgen)" \
   -H "Content-Type: application/json" \

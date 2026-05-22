@@ -4,7 +4,7 @@ sidebarTitle: "Deep Search"
 description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
 ---
 
-Developer Deep Search starts asynchronous profile enrichment from an email or LinkedIn seed, or from a structured search intent, and returns IDs you can use to track progress. Send `email` and/or `linkedinUrl` for direct profile generation, or send the same public `structuredIntent` DSL used by Smart Search for arbitrary discovery.
+Developer Deep Search starts asynchronous profile enrichment from an email or LinkedIn seed, or from a structured search intent, and returns IDs you can use to track progress. Send `email` and/or `linkedinUrl` for direct profile generation, or send the same public `structuredIntent` DSL used by Search for arbitrary discovery.
 
 Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
 
@@ -73,7 +73,7 @@ Use structured intent when you want Orbit to find matching people and generate p
 Structured discovery requires `structuredIntent.names[0]` plus at least one discovery signal that maps to search terms, `age`, or `age_range`.
 
 <Note>
-  Deep Search does not accept Smart Search's `query` field or the legacy top-level fields (`name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields). `entityClauses` are not part of the public structured DSL yet. Deep Search also does not have Smart Search's API-key user network or location context, so use Smart Search for strict `personalization.network` or `personalization.nearMe` behavior.
+  Deep Search does not accept Search's `query` field or the legacy top-level fields (`name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields). `entityClauses` are not part of the public structured DSL yet. Deep Search also does not have the synchronous search endpoint's API-key user network or location context, so use `POST /v2/developer/search` for strict `personalization.network` or `personalization.nearMe` behavior.
 </Note>
 
 Behind the API boundary, Orbit converts `structuredIntent` into the internal Deep Search arbitrary-discovery payload. Do not send internal Deep Search fields such as `person_name` or `arbitrary_search_terms` directly.

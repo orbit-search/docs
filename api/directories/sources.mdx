@@ -266,10 +266,10 @@ Returns the list of personal connections that have been imported.
   </Step>
 
   <Step title="Run a directory-scoped search">
-    Use your organization API key to run a smart search scoped to the directory.
+    Use your organization API key to run a search scoped to the directory.
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+    curl -X POST "$API_BASE/v2/developer/search" \
       -H "Authorization: Bearer $ORG_API_KEY" \
       -H "Content-Type: application/json" \
       -d '{

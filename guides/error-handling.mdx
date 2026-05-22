@@ -79,7 +79,7 @@ Your error handling should always read the `error.code` field to determine what 
     | `developer_deep_search_input_conflict` | Deep Search received direct profile seed(s) and `structuredIntent`; send one request shape. |
     | `developer_deep_search_name_required` | Deep Search is missing `structuredIntent.names[0]`. |
     | `developer_deep_search_arbitrary_input_required` | Deep Search structured intent is missing a signal that maps to search terms, `age`, or `age_range`. |
-    | `developer_deep_search_personalization_unsupported` | Deep Search received `structuredIntent.personalization`, which requires Smart Search user context. |
+    | `developer_deep_search_personalization_unsupported` | Deep Search received `structuredIntent.personalization`, which requires synchronous search user context. |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object. |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values. |
     | `structured_intent_version_unsupported` | `structuredIntent.version` must be `"v1"`. |
@@ -151,7 +151,7 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for smart search, 10 for Deep Search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
+    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for Search, 10 for Deep Search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
     | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 search or Deep Search requests per 60 seconds per API key (120 profile reads per 60 seconds). Back off and retry after the window resets. |
 
     Credit-insufficient response example:
@@ -224,7 +224,7 @@ Your error handling should always read the `error.code` field to determine what 
     | 400 | `developer_deep_search_input_conflict` | The body includes both profile generation seed(s) and `structuredIntent`. |
     | 400 | `developer_deep_search_name_required` | Deep Search is missing `structuredIntent.names[0]`. |
     | 400 | `developer_deep_search_arbitrary_input_required` | Deep Search structured intent is missing a signal that maps to search terms, `age`, or `age_range`. |
-    | 400 | `developer_deep_search_personalization_unsupported` | The structured intent includes personalization, which requires Smart Search user context. |
+    | 400 | `developer_deep_search_personalization_unsupported` | The structured intent includes personalization, which requires synchronous search user context. |
     | 400 | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object. |
     | 404 | `developer_deep_search_run_not_found` | The run ID does not exist for this API key. |
     | 409 | `developer_deep_search_idempotency_key_conflict` | An explicit `Idempotency-Key` was reused with different request parameters. |

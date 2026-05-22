@@ -6,20 +6,21 @@ description: "Learn how Orbit Search interprets natural language, which request 
 
 Orbit Search accepts plain English queries and handles the hard parts — query understanding, semantic matching, entity resolution, and ranking — automatically. You send a query like `"founders in San Francisco"` and receive ranked profile results. There is no query language to learn and no schema to map against; the API infers your intent from the natural language you provide.
 
-If your integration already has structured filters, Smart Search also accepts a [structured DSL](/api/search/structured-dsl) through `structuredIntent`. Use it when you want to bypass natural-language parsing for known clauses while keeping a plain-English `query` for moderation, logging, summaries, match reasons, and search-quality training. Developer Deep Search uses the same DSL as its request contract.
+If your integration already has structured filters, Search also accepts a [structured DSL](/api/search/structured-dsl) through `structuredIntent`. Use it when you want to bypass natural-language parsing for known clauses while keeping a plain-English `query` for moderation, logging, summaries, match reasons, and search-quality training. Developer Deep Search uses the same DSL as its request contract.
 
-## The search endpoint
+## The search endpoints
 
-All search requests go to the same endpoint:
+Use the synchronous endpoint for one JSON response, or the SSE endpoint when you want initial results followed by streamed updates:
 
 ```http
-POST /v2/social/profiles/searches/smart
+POST /v2/developer/search
+POST /v2/developer/search/sse
 ```
 
 Authenticate with your developer API key in the `Authorization` header:
 
 ```bash
-curl -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+curl -X POST "$API_BASE/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: your-unique-request-id" \
   -H "Content-Type: application/json" \
@@ -44,16 +45,16 @@ Include an `Idempotency-Key` header on every search request. If your client retr
 
 ## Request fields
 
-Smart Search request bodies use these fields:
+Search request bodies use these fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `query` | string | Yes | A natural language description of who you are looking for |
 | `numUsers` | integer | Yes | How many results to return; must be a positive integer, maximum 100 |
 | `searchScope` | object | No | Constrains where the search runs; defaults to `global` if omitted |
-| `structuredIntent` | object | No | Optional structured DSL plan for Smart Search |
+| `structuredIntent` | object | No | Optional structured DSL plan for Search |
 
-`userId` and `searchId` are not accepted in smart-search developer API requests. Smart search returns one synchronous response. Developer Deep Search is the async search surface and exposes its own snapshot and SSE progress endpoints.
+`userId` and `searchId` are not accepted in developer search requests. `POST /v2/developer/search` returns one synchronous response. `POST /v2/developer/search/sse` streams the same initial payload plus follow-up events such as match-reason updates. Developer Deep Search is the async search surface and exposes its own snapshot and SSE progress endpoints.
 
 ## Search scopes
 
@@ -110,7 +111,7 @@ Search results include user IDs you can use to fetch full public profiles. Use t
 
 ```bash
 SEARCH_RESPONSE=$(
-  curl -s -X POST "$API_BASE/v2/social/profiles/searches/smart" \
+  curl -s -X POST "$API_BASE/v2/developer/search" \
     -H "Authorization: Bearer sk_orb_REDACTED" \
     -H "Content-Type: application/json" \
     -d '{"query":"founders in sf","numUsers":10}'

@@ -20,7 +20,7 @@ When you issue a key in the dashboard, choose which operations it is allowed to 
 
 | Scope | What it grants |
 |---|---|
-| `search:read` | Call search endpoints, including smart search (`POST /v2/social/profiles/searches/smart`) and Developer Deep Search (`POST /v2/developer/deep-search`) |
+| `search:read` | Call search endpoints, including Search (`POST /v2/developer/search`, `POST /v2/developer/search/sse`) and Developer Deep Search (`POST /v2/developer/deep-search`) |
 | `profile:read` | Fetch a profile by ID (`GET /v2/developer/profiles/:id`) |
 
 A key without `search:read` will receive a `403 missing_api_key_scope` error if it attempts a search. Request only the scopes your integration actually uses.
@@ -48,7 +48,7 @@ Generate and manage developer API keys in the [Orbit developer dashboard](https:
 Include the raw key as a bearer token on every API call:
 
 ```bash
-curl -X POST "https://api.orbitsearch.com/v2/social/profiles/searches/smart" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Content-Type: application/json" \
   -d '{"query":"founders in sf","numUsers":10}'

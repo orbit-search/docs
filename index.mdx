@@ -12,7 +12,7 @@ Orbit Search gives you a powerful API to search, discover, and read professional
   <Card title="Authentication" icon="key" href="/authentication">
     Get a dashboard-issued key and choose scopes
   </Card>
-  <Card title="Smart Search" icon="magnifying-glass" href="/api/search/smart-search">
+  <Card title="Search" icon="magnifying-glass" href="/api/search/smart-search">
     Full reference for the search endpoint
   </Card>
   <Card title="Search Directories" icon="folder" href="/concepts/directories">
@@ -29,7 +29,7 @@ Orbit Search exposes a simple REST API. You authenticate with a developer API ke
     Sign in to the [Orbit developer dashboard](https://developer.orbitsearch.com/dashboard/keys) and generate a developer API key with the scopes you need (`search:read`, `profile:read`).
   </Step>
   <Step title="Run your first search">
-    Call `POST /v2/social/profiles/searches/smart` with a natural language query like `"founders in San Francisco"`.
+    Call `POST /v2/developer/search` with a natural language query like `"founders in San Francisco"`.
   </Step>
   <Step title="Read profile details">
     Use profile IDs from search results to fetch full public profiles via `GET /v2/developer/profiles/:id`.
