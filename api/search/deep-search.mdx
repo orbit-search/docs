@@ -211,7 +211,7 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
     | `developer_deep_search_input_conflict` | The body includes both a profile generation seed and `structuredIntent` |
     | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
-    | `developer_deep_search_arbitrary_input_required` | `structuredIntent` must include a name plus at least one experience, education, location, profile URL, or semantic clause |
+    | `developer_deep_search_arbitrary_input_required` | `Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
