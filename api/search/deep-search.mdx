@@ -53,6 +53,9 @@ Use structured intent when you want Orbit to find matching people and generate p
     "version": "v1",
     "names": ["Jai"],
     "experiences": [{ "organization": "Orbit Intelligence" }],
+    "semanticClauses": [
+      { "text": "posts about consumer social startups" }
+    ],
     "demographics": { "ageRange": { "min": 23, "max": 25 } }
   }
 }
@@ -309,7 +312,7 @@ curl -X POST "$API_BASE/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
-  -d '{"structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
+  -d '{"structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"semanticClauses":[{"text":"posts about consumer social startups"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
 ```
 
 ```javascript JavaScript
@@ -325,6 +328,7 @@ const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
       version: "v1",
       names: ["Jai"],
       experiences: [{ organization: "Orbit Intelligence" }],
+      semanticClauses: [{ text: "posts about consumer social startups" }],
       demographics: { ageRange: { min: 23, max: 25 } },
     },
   }),
@@ -350,6 +354,7 @@ response = requests.post(
             "version": "v1",
             "names": ["Jai"],
             "experiences": [{"organization": "Orbit Intelligence"}],
+            "semanticClauses": [{"text": "posts about consumer social startups"}],
             "demographics": {"ageRange": {"min": 23, "max": 25}},
         },
     },
