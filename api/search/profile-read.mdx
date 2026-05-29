@@ -4,7 +4,7 @@ sidebarTitle: "Profile read"
 description: "Fetch the public profile DTO for a single Orbit user by ID. Use profile IDs returned from search results to retrieve structured profile data."
 ---
 
-The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `userId` field in search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
+The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `id` field in search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
 
 ## Authentication
 
@@ -23,7 +23,7 @@ GET /v2/developer/profiles/:id
 ### Path parameters
 
 <ParamField path="id" type="string" required>
-  The profile ID to fetch. This is the `userId` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response.
+  The profile ID to fetch. This is the `id` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response.
 </ParamField>
 
 ## Response
@@ -49,7 +49,21 @@ GET /v2/developer/profiles/:id
       "schoolName": "Example University"
     },
     "sections": {
-      "basic": { "school": "Example University", "location": "San Francisco" },
+      "basic": {
+        "items": [
+          {
+            "kind": "school",
+            "title": "Graduated from Example University in 2018",
+            "school": "Example University",
+            "year": 2018
+          },
+          {
+            "kind": "location",
+            "title": "San Francisco, CA",
+            "location": "San Francisco, CA"
+          }
+        ]
+      },
       "personalLife": null,
       "jobs": null,
       "education": null,
@@ -60,7 +74,32 @@ GET /v2/developer/profiles/:id
       "bestQualities": null,
       "netWorth": null,
       "portfolio": null,
-      "families": null
+      "families": null,
+      "mediaCredits": {
+        "items": [
+          {
+            "kind": "media_credit",
+            "title": "Example Documentary",
+            "mediaType": "movie",
+            "releaseDate": "2025-03-01",
+            "roleType": "cast",
+            "roleName": "Self"
+          }
+        ]
+      },
+      "musicCredits": {
+        "items": [
+          {
+            "kind": "music_credit",
+            "title": "Example Album",
+            "releaseType": "Album",
+            "firstReleaseDate": "2024-08-23",
+            "creditName": "Example Artist",
+            "role": "artist",
+            "relationship": "artist"
+          }
+        ]
+      }
     }
   }
 }
@@ -73,7 +112,7 @@ GET /v2/developer/profiles/:id
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.id" type="string" required>
-      The profile ID that was requested. This is the same value you passed in the `:id` path parameter.
+      The profile ID. You can pass this value, or `payload.orbitId`, back to this endpoint.
     </ResponseField>
     <ResponseField name="payload.orbitId" type="string" required>
       The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces.
@@ -115,7 +154,7 @@ GET /v2/developer/profiles/:id
       </Expandable>
     </ResponseField>
     <ResponseField name="payload.sections" type="object">
-      Structured profile sections. Each section is either an object with section-specific fields or `null` when the user has not filled it out.
+      Structured profile sections. Standard profile sections are returned as objects with section-specific `items` or as `null` when no public data is available. Contribution sections are optional and are only included when Orbit has public contribution data.
 
       <Expandable title="properties">
         <ResponseField name="payload.sections.basic" type="object | null">
@@ -153,6 +192,21 @@ GET /v2/developer/profiles/:id
         </ResponseField>
         <ResponseField name="payload.sections.families" type="object | null">
           Family information shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.researchPapers" type="object">
+          Public research paper contributions. Included only when Orbit has contribution data.
+        </ResponseField>
+        <ResponseField name="payload.sections.githubRepos" type="object">
+          Public GitHub repository contributions. Included only when Orbit has contribution data.
+        </ResponseField>
+        <ResponseField name="payload.sections.mediaCredits" type="object">
+          Public film, television, or other media credits. Included only when Orbit has contribution data.
+        </ResponseField>
+        <ResponseField name="payload.sections.musicCredits" type="object">
+          Public music release credits. Included only when Orbit has contribution data.
+        </ResponseField>
+        <ResponseField name="payload.sections.books" type="object">
+          Public book or authored-work contributions. Included only when Orbit has contribution data.
         </ResponseField>
       </Expandable>
     </ResponseField>
@@ -196,7 +250,7 @@ SEARCH_RESPONSE=$(
     -d '{"query":"founders in sf","numUsers":10}'
 )
 
-PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
 curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
   -H "Authorization: Bearer sk_orb_REDACTED"
@@ -217,7 +271,7 @@ const searchResponse = await fetch(
 );
 
 const searchData = await searchResponse.json();
-const profileId = searchData.payload.users[0].userId;
+const profileId = searchData.payload.users[0].id;
 
 // Step 2: fetch the full profile
 const profileResponse = await fetch(
@@ -247,7 +301,7 @@ search_response = requests.post(
 )
 
 search_data = search_response.json()
-profile_id = search_data["payload"]["users"][0]["userId"]
+profile_id = search_data["payload"]["users"][0]["id"]
 
 # Step 2: fetch the full profile
 profile_response = requests.get(

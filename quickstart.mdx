@@ -65,7 +65,7 @@ This guide walks you through the three steps you need to make your first working
     }
     ```
 
-    Each object in `payload.users` includes a `userId` you can use to fetch the full profile. The response also includes the `X-Developer-API-Credits-Remaining` header so you can track how many credits you have left.
+    Each object in `payload.users` includes an `id` you can use to fetch the full profile. The response also includes the `X-Developer-API-Credits-Remaining` header so you can track how many credits you have left.
 
     <Tip>
       Include an `Idempotency-Key` header on every search request. If your client retries after a network error, the same key prevents you from being charged twice for the same search. Use a fresh key for each logically distinct request.
@@ -77,12 +77,12 @@ This guide walks you through the three steps you need to make your first working
   </Step>
 
   <Step title="Read a profile">
-    Take a `userId` from your search results and pass it to `GET /v2/developer/profiles/:id`. Each profile read costs 1 credit; not-found and failed reads are refunded.
+    Take an `id` from your search results and pass it to `GET /v2/developer/profiles/:id`. Each profile read costs 1 credit; not-found and failed reads are refunded.
 
     <CodeGroup>
 
     ```bash cURL
-    # Extract the first userId from your search response, then fetch the profile
+    # Extract the first profile id from your search response, then fetch the profile
     SEARCH_RESPONSE=$(
       curl -s -X POST "https://api.orbitsearch.com/v2/developer/search" \
         -H "Authorization: Bearer sk_orb_REDACTED" \
@@ -90,7 +90,7 @@ This guide walks you through the three steps you need to make your first working
         -d '{"query":"founders in sf","numUsers":10}'
     )
 
-    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
     curl "https://api.orbitsearch.com/v2/developer/profiles/$PROFILE_ID" \
       -H "Authorization: Bearer sk_orb_REDACTED"
@@ -98,10 +98,10 @@ This guide walks you through the three steps you need to make your first working
 
     ```javascript JavaScript
     // After getting searchData from the search step above:
-    const userId = searchData.payload.users[0].userId;
+    const profileId = searchData.payload.users[0].id;
 
     const profileResponse = await fetch(
-      `https://api.orbitsearch.com/v2/developer/profiles/${userId}`,
+      `https://api.orbitsearch.com/v2/developer/profiles/${profileId}`,
       {
         headers: {
           Authorization: "Bearer sk_orb_REDACTED",
@@ -136,8 +136,19 @@ This guide walks you through the three steps you need to make your first working
         },
         "sections": {
           "basic": {
-            "school": "Example University",
-            "location": "San Francisco"
+            "items": [
+              {
+                "kind": "school",
+                "title": "Graduated from Example University in 2018",
+                "school": "Example University",
+                "year": 2018
+              },
+              {
+                "kind": "location",
+                "title": "San Francisco, CA",
+                "location": "San Francisco, CA"
+              }
+            ]
           },
           "personalLife": null,
           "jobs": null,
@@ -155,6 +166,6 @@ This guide walks you through the three steps you need to make your first working
     }
     ```
 
-    The profile DTO exposes a public-safe allowlist of fields. It does not include raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields.
+    The profile DTO exposes a public-safe allowlist of fields. It does not include raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Profiles may also include optional contribution sections such as `mediaCredits`, `musicCredits`, `researchPapers`, `githubRepos`, and `books` when public contribution data is available.
   </Step>
 </Steps>

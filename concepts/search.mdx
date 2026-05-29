@@ -117,7 +117,7 @@ SEARCH_RESPONSE=$(
     -d '{"query":"founders in sf","numUsers":10}'
 )
 
-PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
 curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
   -H "Authorization: Bearer sk_orb_REDACTED"
