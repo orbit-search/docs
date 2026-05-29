@@ -71,7 +71,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
       "payload": {
         "users": [
           {
-            "userId": "usr_a1b2c3d4e5f6",
+            "id": "profile_a1b2c3d4e5f6",
             "displayName": "Ada Lovelace",
             "headline": "Founder at Example Co"
           }
@@ -82,16 +82,16 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 
     Check the `X-Developer-API-Credits-Remaining` response header to see how many credits you have left after the request. Each successful search costs 2 credits by default. If the search returns no users, the credits are automatically refunded and the header will reflect your full balance.
 
-    Each object in `payload.users` contains a `userId` field. Use this to fetch a full profile in the next step.
+    Each object in `payload.users` contains an `id` field. Use this to fetch a full profile in the next step.
   </Step>
 
   <Step title="Fetch a full profile">
-    Pass the `userId` from any search result to `GET /v2/developer/profiles/:id` to retrieve the complete public profile DTO.
+    Pass the `id` from any search result to `GET /v2/developer/profiles/:id` to retrieve the complete public profile DTO.
 
     <CodeGroup>
 
     ```bash curl
-    # Extract userId from the first search result and fetch its profile
+    # Extract the profile id from the first search result and fetch its profile
     SEARCH_RESPONSE=$(
       curl -s -X POST "$API_BASE/v2/developer/search" \
         -H "Authorization: Bearer $ORBIT_API_KEY" \
@@ -99,7 +99,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
         -d '{"query": "founders in sf", "numUsers": 10}'
     )
 
-    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].userId')
+    PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
     curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
       -H "Authorization: Bearer $ORBIT_API_KEY"
@@ -118,7 +118,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
       }
     );
     const searchData = await searchRes.json();
-    const profileId = searchData.payload.users[0]?.userId;
+    const profileId = searchData.payload.users[0]?.id;
 
     const profileRes = await fetch(
       `${API_BASE}/v2/developer/profiles/${profileId}`,
@@ -153,8 +153,19 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
         },
         "sections": {
           "basic": {
-            "school": "Example University",
-            "location": "San Francisco"
+            "items": [
+              {
+                "kind": "school",
+                "title": "Graduated from Example University in 2018",
+                "school": "Example University",
+                "year": 2018
+              },
+              {
+                "kind": "location",
+                "title": "San Francisco, CA",
+                "location": "San Francisco, CA"
+              }
+            ]
           },
           "personalLife": null,
           "jobs": null,
@@ -172,7 +183,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     }
     ```
 
-    The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Each profile read costs 1 credit by default; failed or not-found reads are refunded automatically.
+    The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Profiles may also include optional contribution sections such as `mediaCredits`, `musicCredits`, `researchPapers`, `githubRepos`, and `books` when public contribution data is available. Each profile read costs 1 credit by default; failed or not-found reads are refunded automatically.
   </Step>
 </Steps>
 
