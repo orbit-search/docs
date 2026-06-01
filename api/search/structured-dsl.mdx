@@ -67,7 +67,8 @@ Deep Search accepts `email` and/or `linkedinUrl` seeds for direct profile genera
 ```json
 {
   "email": "jane@example.com",
-  "linkedinUrl": "https://www.linkedin.com/in/janedoe"
+  "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+  "partialProfile": true
 }
 ```
 
@@ -86,7 +87,7 @@ Or, for arbitrary discovery:
 
 Deep Search maps `structuredIntent.names[0]` to the person name and converts experiences, schools, semantic clauses, location, and demographic text into discovery terms. `ageRange` maps to `age` or `age_range`; `birthYearRange` maps to an approximate `age_range`.
 
-Deep Search requires `email`, `linkedinUrl`, or `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint.
+Deep Search requires `email`, `linkedinUrl`, or `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint. Use `partialProfile: true` only with email or LinkedIn generation seed requests, not with `structuredIntent` arbitrary discovery.
 
 <Note>
   Deep Search does not have the synchronous search endpoint's API-key user network or location context, so use `POST /v2/developer/search` for strict `personalization.network` or `personalization.nearMe` behavior.

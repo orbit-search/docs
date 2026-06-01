@@ -45,6 +45,15 @@ Use email or LinkedIn when you already have a direct identity seed:
 }
 ```
 
+Add `partialProfile: true` when you want the run to publish an early source-backed profile before the full Deep Search pipeline finishes:
+
+```json
+{
+  "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+  "partialProfile": true
+}
+```
+
 Use structured intent when you want Orbit to find matching people and generate profiles:
 
 ```json
@@ -67,6 +76,10 @@ Use structured intent when you want Orbit to find matching people and generate p
 
 <ParamField body="linkedinUrl" type="string">
   Optional LinkedIn profile URL to use as a Deep Search generation seed. Send `linkedinUrl`, `email`, or both for profile generation.
+</ParamField>
+
+<ParamField body="partialProfile" type="boolean">
+  Optional fast partial profile flag for email or LinkedIn generation requests. When `true`, Deep Search publishes a source-backed partial profile and profile sections as soon as they are ready, then continues the full pipeline. This flag is not supported with `structuredIntent`.
 </ParamField>
 
 <ParamField body="structuredIntent" type="object">
@@ -173,7 +186,57 @@ Snapshot reads require the same API key that created the run.
 }
 ```
 
-Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `saving_profile`, `completed`, and `failed`.
+Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `partial_profile_ready`, `saving_profile`, `completed`, and `failed`.
+
+### Partial profile snapshots
+
+When a generation request includes `partialProfile: true`, snapshots and SSE progress events can include `result.partial_profile` while the run is still processing. The `partial_profile_ready` stage means the source-backed partial profile was generated. Check `result.partial_profile.profile_read` to see whether the partial profile sections are ready for profile-read queries.
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "generation",
+    "status": "processing",
+    "stage": "partial_profile_ready",
+    "progress": {
+      "percent": 70,
+      "description": "Partial profile generated",
+      "current_step": "partial_profile_ready"
+    },
+    "search_id": "DEEP_SEARCH_ID",
+    "job_id": "DEEP_SEARCH_JOB_ID",
+    "cluster_group_id": null,
+    "sources_unassigned": [],
+    "candidates": [],
+    "result": {
+      "profile_ids": [],
+      "partial_profile": {
+        "ready": true,
+        "stage": "post_fast_partial_enrichment",
+        "source_count_included": 10,
+        "fun_fact_count": 18,
+        "profile": {
+          "id": "PROFILE_ID",
+          "orbit_id": "ORBIT_PROFILE_ID",
+          "full_name": "Jane Doe"
+        },
+        "profile_read": {
+          "status": "queued",
+          "published": true,
+          "sections_queued": true,
+          "sections_ready": false,
+          "id": "PROFILE_ID",
+          "orbit_id": "ORBIT_PROFILE_ID"
+        }
+      }
+    }
+  }
+}
+```
+
+`profile_read.status` can be `queued`, `ready`, `partial_failure`, or `failed`. Treat `sections_ready: true` as the signal that the partial profile sections are available through profile read. After the full run completes, use the final `result.profile_ids`; the final profile replaces the partial data.
 
 ## Stream progress with SSE
 
@@ -205,13 +268,15 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `email`, `linkedinUrl`, or `structuredIntent` |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `email`, `linkedinUrl`, `partialProfile`, or `structuredIntent` |
     | `developer_deep_search_input_required` | The body is missing `email`, `linkedinUrl`, or `structuredIntent` |
     | `developer_deep_search_email_invalid` | `email` is malformed |
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
     | `developer_deep_search_input_conflict` | The body includes both a profile generation seed and `structuredIntent` |
+    | `developer_deep_search_partial_profile_invalid` | `partialProfile` is present but is not a boolean |
+    | `developer_deep_search_partial_profile_generation_only` | `partialProfile` was sent without an email or LinkedIn generation seed |
     | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
-    | `developer_deep_search_arbitrary_input_required` | `Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
+    | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
