@@ -4,7 +4,7 @@ sidebarTitle: "Structured DSL"
 description: "Send explicit structured search intent to Orbit instead of relying only on natural-language parsing."
 ---
 
-Use `structuredIntent` when your product already knows the search filters it wants to apply. For `POST /v2/developer/search`, Orbit still requires a human-readable `query`; the structured intent is used as the search plan instead of asking Orbit to infer every clause from the query text. For Deep Search arbitrary discovery, the same structured intent envelope is translated into Deep Search's internal discovery inputs.
+Use `structuredIntent` when your product already knows the search filters it wants to apply. For `POST /v2/developer/search`, Orbit still requires a human-readable `query`; the structured intent is used as the search plan instead of asking Orbit to infer every clause from the query text. For Deep Search candidate discovery, the same structured intent envelope is translated into Deep Search's internal discovery inputs.
 
 Structured intent is supported on these developer API surfaces:
 
@@ -22,7 +22,7 @@ The same search request body works for global search and directory-scoped search
 |---|---|---|
 | Search | `query`, `numUsers` | `structuredIntent` is optional. When present, `query` still must describe the same user intent in plain English. |
 | Search SSE | `query`, `numUsers` | Same request body as Search. |
-| Deep Search | `email` or `linkedinUrl`, or `structuredIntent.version`, `structuredIntent.names[0]`, and at least one discovery signal | Send either profile generation seed(s) or `structuredIntent`. Legacy top-level fields are rejected. |
+| Deep Search | A profile generation path such as `linkedinUrl`, `structuredIntent` in generation mode, `email + structuredIntent`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]`; or `structuredIntent.version`, `structuredIntent.names[0]`, and at least one discovery signal for candidate discovery | `structuredIntent` can either drive candidate discovery or provide matching hints for a singular profile generation request. Legacy top-level fields are rejected. |
 
 `structuredIntent.version` is required and must be `"v1"`. The DSL fields are flat under `structuredIntent`; do not wrap them in an extra `intent` object.
 
@@ -62,20 +62,34 @@ The same search request body works for global search and directory-scoped search
 
 ## Deep Search Shape
 
-Deep Search accepts `email` and/or `linkedinUrl` seeds for direct profile generation, or the same `structuredIntent` object on `POST /v2/developer/deep-search` when you are using arbitrary discovery. Send exactly one request shape; combining seed fields with `structuredIntent` returns `developer_deep_search_input_conflict`.
+Deep Search accepts direct identity inputs for profile generation, or the same `structuredIntent` object on `POST /v2/developer/deep-search` when you are using candidate discovery. `structuredIntent` may also be combined with generation inputs to provide the person name and matching hints.
 
 ```json
 {
-  "email": "jane@example.com",
   "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+  "email": "jane@example.com",
   "partialProfile": true
 }
 ```
 
-Or, for arbitrary discovery:
+Public URLs can also seed one profile when paired with a structured name:
 
 ```json
 {
+  "urls": ["https://github.com/janedoe"],
+  "structuredIntent": {
+    "version": "v1",
+    "names": ["Jane Doe"]
+  },
+  "partialProfile": true
+}
+```
+
+Or, for candidate discovery:
+
+```json
+{
+  "mode": "candidate_discovery",
   "structuredIntent": {
     "version": "v1",
     "names": ["Jai"],
@@ -85,9 +99,9 @@ Or, for arbitrary discovery:
 }
 ```
 
-Deep Search maps `structuredIntent.names[0]` to the person name and converts experiences, schools, semantic clauses, location, and demographic text into discovery terms. `ageRange` maps to `age` or `age_range`; `birthYearRange` maps to an approximate `age_range`.
+Deep Search maps `structuredIntent.names[0]` to the person name. In generation mode, experiences, schools, semantic clauses, location, and demographic text are matching hints. In candidate discovery mode, those fields become discovery criteria. `ageRange` maps to `age` or `age_range`; `birthYearRange` maps to an approximate `age_range`.
 
-Deep Search requires `email`, `linkedinUrl`, or `structuredIntent`; legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint. Use `partialProfile: true` only with email or LinkedIn generation seed requests, not with `structuredIntent` arbitrary discovery.
+Deep Search requires `structuredIntent`, `linkedinUrl`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]`. `email` and `usernames` can be provided as hints, but are not standalone generation paths. Legacy top-level fields such as `name`, `web_url`, `search_terms`, `age`, `age_range`, and location fields are not accepted on that endpoint. Use `partialProfile: true` only for profile generation, not `candidate_discovery`.
 
 <Note>
   Deep Search does not have the synchronous search endpoint's API-key user network or location context, so use `POST /v2/developer/search` for strict `personalization.network` or `personalization.nearMe` behavior.
@@ -188,7 +202,7 @@ Use `text` for the main profile evidence concept. Add `anyOf` only when aliases 
 }
 ```
 
-When both are set, Search treats them as one semantic group: `text` is the canonical phrase, and `anyOf` adds alternatives for the same clause. Deep Search translates both the `text` phrase and each `anyOf` phrase into its internal arbitrary discovery terms.
+When both are set, Search treats them as one semantic group: `text` is the canonical phrase, and `anyOf` adds alternatives for the same clause. Deep Search translates both the `text` phrase and each `anyOf` phrase into its internal candidate discovery terms.
 
 ## Location and demographics
 
