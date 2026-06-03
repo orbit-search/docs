@@ -4,7 +4,7 @@ sidebarTitle: "Deep Search"
 description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
 ---
 
-Developer Deep Search starts asynchronous profile enrichment from an email or LinkedIn seed, or from a structured search intent, and returns IDs you can use to track progress. Send `email` and/or `linkedinUrl` for direct profile generation, or send the same public `structuredIntent` DSL used by Search for arbitrary discovery.
+Developer Deep Search starts asynchronous profile enrichment from a singular identity seed, or candidate discovery from a structured search intent, and returns IDs you can use to track progress. Send `linkedinUrl`, `email + structuredIntent`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]` for profile generation. Use `structuredIntent` with `mode: "generation"` or `partialProfile: true` when structured intent should generate one profile. Send only `structuredIntent`, or set `mode: "candidate_discovery"`, when you want candidate discovery instead.
 
 Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
 
@@ -36,11 +36,10 @@ Send an `Idempotency-Key` for every new Deep Search request. Reusing the same ke
 
 ### Request body
 
-Use email or LinkedIn when you already have a direct identity seed:
+Use LinkedIn when you already have a direct identity seed:
 
 ```json
 {
-  "email": "jane@example.com",
   "linkedinUrl": "https://www.linkedin.com/in/janedoe"
 }
 ```
@@ -54,10 +53,24 @@ Add `partialProfile: true` when you want the run to publish an early source-back
 }
 ```
 
-Use structured intent when you want Orbit to find matching people and generate profiles:
+Use public URLs plus a structured name when the URL is the identity seed:
 
 ```json
 {
+  "urls": ["https://github.com/janedoe"],
+  "structuredIntent": {
+    "version": "v1",
+    "names": ["Jane Doe"]
+  },
+  "partialProfile": true
+}
+```
+
+Use structured intent alone when you want Orbit to discover matching people:
+
+```json
+{
+  "mode": "candidate_discovery",
   "structuredIntent": {
     "version": "v1",
     "names": ["Jai"],
@@ -70,23 +83,39 @@ Use structured intent when you want Orbit to find matching people and generate p
 }
 ```
 
+<ParamField body="mode" type="string">
+  Optional mode. Use `"generation"` to enrich one profile, or `"candidate_discovery"` to find candidate people from `structuredIntent`. When omitted, direct identity inputs default to `"generation"` and `structuredIntent` alone defaults to `"candidate_discovery"`.
+</ParamField>
+
 <ParamField body="email" type="string">
-  Optional email address to use as a Deep Search generation seed. Send `email`, `linkedinUrl`, or both for profile generation.
+  Optional email address to use as an identity hint. Email-only generation is not supported; send it with `structuredIntent` or `linkedinUrl`.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string">
+  Optional phone number to use as an identity hint. Phone generation requires `structuredIntent.names[0]`; send the public field as `phoneNumber`, not `phone`.
 </ParamField>
 
 <ParamField body="linkedinUrl" type="string">
-  Optional LinkedIn profile URL to use as a Deep Search generation seed. Send `linkedinUrl`, `email`, or both for profile generation.
+  Optional LinkedIn profile URL to use as a Deep Search generation seed. LinkedIn alone is supported; `email`, `phoneNumber`, `urls`, `usernames`, and `structuredIntent` can also be included as hints.
+</ParamField>
+
+<ParamField body="urls" type="string[]">
+  Optional public URLs to use as source seeds or hints. `urls + structuredIntent.names[0]` is a supported profile generation path; `urls` alone is not supported.
+</ParamField>
+
+<ParamField body="usernames" type="string[]">
+  Optional usernames to use as identity hints. Usernames alone are not supported.
 </ParamField>
 
 <ParamField body="partialProfile" type="boolean">
-  Optional fast partial profile flag for email or LinkedIn generation requests. When `true`, Deep Search publishes a source-backed partial profile and profile sections as soon as they are ready, then continues the full pipeline. This flag is not supported with `structuredIntent`.
+  Optional fast partial profile flag for generation requests. When `true`, Deep Search publishes a source-backed partial profile and profile sections as soon as they are ready, then continues the full pipeline. This flag is not supported in `candidate_discovery` mode.
 </ParamField>
 
 <ParamField body="structuredIntent" type="object">
-  Structured search intent. `names[0]` is required as the person name. Experiences, schools, semantic clauses, geo text, age range, and birth-year range are used as discovery criteria.
+  Structured search intent. For profile generation, `names[0]` is the person name and other fields are used as matching hints. For candidate discovery, `names[0]` plus at least one discovery signal is required.
 </ParamField>
 
-Structured discovery requires `structuredIntent.names[0]` plus at least one supported discovery signal, such as an experience, school, semantic clause, geo place, age range, or birth-year range. Gender is not a Deep Search discovery signal by itself.
+Candidate discovery requires `structuredIntent.names[0]` plus at least one supported discovery signal, such as an experience, school, semantic clause, geo place, age range, or birth-year range. Gender is not a Deep Search discovery signal by itself.
 
 <Note>
   Put freeform discovery text in `structuredIntent.semanticClauses`; do not send it as top-level clauses. `entityClauses` are not part of the public structured DSL yet. Use `POST /v2/developer/search` when you need personalized network or near-me search behavior.
@@ -94,7 +123,7 @@ Structured discovery requires `structuredIntent.names[0]` plus at least one supp
 
 ### 202 Accepted
 
-Email/LinkedIn seed requests return `mode: "generation"`:
+Profile generation requests return `mode: "generation"`:
 
 ```json
 {
@@ -268,13 +297,19 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `email`, `linkedinUrl`, `partialProfile`, or `structuredIntent` |
-    | `developer_deep_search_input_required` | The body is missing `email`, `linkedinUrl`, or `structuredIntent` |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `mode`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, `partialProfile`, or `structuredIntent` |
+    | `developer_deep_search_input_required` | The body is missing a supported Deep Search input |
     | `developer_deep_search_email_invalid` | `email` is malformed |
+    | `developer_deep_search_phone_invalid` | `phoneNumber` is malformed |
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
-    | `developer_deep_search_input_conflict` | The body includes both a profile generation seed and `structuredIntent` |
+    | `developer_deep_search_field_invalid` | `urls` or `usernames` is malformed |
+    | `developer_deep_search_email_only_unsupported` | Email-only generation is not supported; provide `structuredIntent` or `linkedinUrl` |
+    | `developer_deep_search_generation_input_required` | Generation mode is missing a supported profile generation input |
+    | `developer_deep_search_generation_minimum_path_required` | Generation requires `structuredIntent`, `linkedinUrl`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]` |
+    | `developer_deep_search_phone_name_required` | `phoneNumber` was sent without `structuredIntent.names[0]` |
+    | `developer_deep_search_candidate_discovery_structured_intent_only` | `candidate_discovery` mode only supports `structuredIntent` |
     | `developer_deep_search_partial_profile_invalid` | `partialProfile` is present but is not a boolean |
-    | `developer_deep_search_partial_profile_generation_only` | `partialProfile` was sent without an email or LinkedIn generation seed |
+    | `developer_deep_search_partial_profile_generation_only` | `partialProfile` was sent in `candidate_discovery` mode |
     | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
     | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
@@ -315,7 +350,7 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
 
 ## Code examples
 
-Direct profile generation from email/LinkedIn seeds:
+Direct profile generation from a LinkedIn seed with an email hint:
 
 <CodeGroup>
 
@@ -368,7 +403,7 @@ print(data["payload"]["id"], data["payload"]["mode"])
 
 </CodeGroup>
 
-Arbitrary discovery from structured intent:
+Candidate discovery from structured intent:
 
 <CodeGroup>
 
@@ -377,7 +412,7 @@ curl -X POST "$API_BASE/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
-  -d '{"structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"semanticClauses":[{"text":"posts about consumer social startups"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
+  -d '{"mode":"candidate_discovery","structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"semanticClauses":[{"text":"posts about consumer social startups"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
 ```
 
 ```javascript JavaScript
@@ -389,6 +424,7 @@ const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
+    mode: "candidate_discovery",
     structuredIntent: {
       version: "v1",
       names: ["Jai"],
@@ -415,6 +451,7 @@ response = requests.post(
         "Content-Type": "application/json",
     },
     json={
+        "mode": "candidate_discovery",
         "structuredIntent": {
             "version": "v1",
             "names": ["Jai"],
