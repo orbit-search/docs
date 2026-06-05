@@ -219,16 +219,15 @@ Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dis
 
 ### Profile ID canonicalization
 
-Deep Search can discover that a generated candidate already matches an existing
-Orbit profile. When that happens, later snapshots or the final
-`result.profile_ids` can return the existing profile's canonical `orbit_id`
-instead of an earlier candidate `orbit_id`.
+All `orbit_id` values you receive remain valid, including in-progress candidate
+IDs from polling. If a candidate is later matched to an existing Orbit profile,
+the candidate ID becomes an alias that resolves to the canonical profile.
 
-Do not assume an in-progress candidate `orbit_id` is permanent. After the run
-completes, store the final `result.profile_ids[].orbit_id`, then read the
-profile with `GET /v2/developer/profiles/:id`. Profile reads also resolve alias
-IDs and return the canonical `payload.orbitId`; use that returned value as your
-durable profile reference.
+Later snapshots and terminal `result.profile_ids` return the canonical
+`orbit_id` directly. If a polling snapshot appears to change from one `orbit_id`
+to another, the earlier ID is still safe to store and read. Calling
+`GET /v2/developer/profiles/:id` with either ID returns the canonical profile
+DTO, and the response's `payload.orbitId` is the canonical Orbit profile ID.
 
 Completed snapshots include the final profile IDs:
 
@@ -252,8 +251,10 @@ Completed snapshots include the final profile IDs:
 }
 ```
 
-If the run canonicalized an alias to an existing identity, `ORBIT_PROFILE_ID`
-is the existing profile's canonical Orbit ID.
+If the run matched the generated candidate to an existing identity,
+`ORBIT_PROFILE_ID` is the existing profile's canonical Orbit ID. Use it as the
+preferred durable reference in new writes. You can still safely read any earlier
+candidate `orbit_id` because it resolves as an alias.
 
 ### Partial profile snapshots
 

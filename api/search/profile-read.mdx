@@ -220,13 +220,14 @@ GET /v2/developer/profiles/:id
 ## Profile ID canonicalization
 
 Profile reads accept IDs returned from Search, Deep Search, and previous profile
-reads. If the requested ID is an alias for an existing identity, Orbit resolves
-the alias and returns the canonical public profile.
+reads. All of those IDs remain valid. If the requested ID is an alias for an
+existing identity, Orbit resolves the alias and returns the canonical public
+profile.
 
 This means the ID in the request path and the identifiers in the response may
-not be identical. Treat `payload.orbitId` as the canonical Orbit profile ID after
-every successful read. If you store profile references, update them to the
-returned `payload.orbitId` so later reads target the canonical identity.
+not be identical. You can safely read either the alias ID or the canonical ID.
+Treat `payload.orbitId` as the canonical Orbit profile ID after every successful
+read, and prefer it for new writes or normalized storage.
 
 Alias resolution is transparent. The response does not include separate
 `requestedId`, `aliasOrbitId`, or `canonicalOrbitId` fields.
