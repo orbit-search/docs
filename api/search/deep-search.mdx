@@ -217,6 +217,19 @@ Snapshot reads require the same API key that created the run.
 
 Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `partial_profile_ready`, `saving_profile`, `completed`, and `failed`.
 
+### Profile ID canonicalization
+
+Deep Search can discover that a generated candidate already matches an existing
+Orbit profile. When that happens, later snapshots or the final
+`result.profile_ids` can return the existing profile's canonical `orbit_id`
+instead of an earlier candidate `orbit_id`.
+
+Do not assume an in-progress candidate `orbit_id` is permanent. After the run
+completes, store the final `result.profile_ids[].orbit_id`, then read the
+profile with `GET /v2/developer/profiles/:id`. Profile reads also resolve alias
+IDs and return the canonical `payload.orbitId`; use that returned value as your
+durable profile reference.
+
 ### Partial profile snapshots
 
 When a generation request includes `partialProfile: true`, snapshots and SSE progress events can include `result.partial_profile` while the run is still processing. The `partial_profile_ready` stage means the source-backed partial profile was generated. Check `result.partial_profile.profile_read` to see whether the partial profile sections are ready for profile-read queries.

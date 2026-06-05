@@ -112,10 +112,10 @@ GET /v2/developer/profiles/:id
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.id" type="string" required>
-      The profile ID. You can pass this value, or `payload.orbitId`, back to this endpoint.
+      The profile ID returned by the read. If the requested ID resolves through an alias, this can belong to the canonical profile rather than the original requested ID.
     </ResponseField>
     <ResponseField name="payload.orbitId" type="string" required>
-      The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces.
+      The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces and to update any stored alias IDs.
     </ResponseField>
     <ResponseField name="payload.displayName" type="string">
       The user's public display name.
@@ -216,6 +216,20 @@ GET /v2/developer/profiles/:id
 <Note>
   The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, full enrichment records, internal moderation or admin metadata, raw profile-owner widgets, or profile-owner-only progress fields.
 </Note>
+
+## Profile ID canonicalization
+
+Profile reads accept IDs returned from Search, Deep Search, and previous profile
+reads. If the requested ID is an alias for an existing identity, Orbit resolves
+the alias and returns the canonical public profile.
+
+This means the ID in the request path and the identifiers in the response may
+not be identical. Treat `payload.orbitId` as the canonical Orbit profile ID after
+every successful read. If you store profile references, update them to the
+returned `payload.orbitId` so later reads target the canonical identity.
+
+Alias resolution is transparent. The response does not include separate
+`requestedId`, `aliasOrbitId`, or `canonicalOrbitId` fields.
 
 ## Credits
 
