@@ -230,6 +230,31 @@ profile with `GET /v2/developer/profiles/:id`. Profile reads also resolve alias
 IDs and return the canonical `payload.orbitId`; use that returned value as your
 durable profile reference.
 
+Completed snapshots include the final profile IDs:
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "generation",
+    "status": "completed",
+    "stage": "completed",
+    "result": {
+      "profile_ids": [
+        {
+          "id": "PROFILE_ID",
+          "orbit_id": "ORBIT_PROFILE_ID"
+        }
+      ]
+    }
+  }
+}
+```
+
+If the run canonicalized an alias to an existing identity, `ORBIT_PROFILE_ID`
+is the existing profile's canonical Orbit ID.
+
 ### Partial profile snapshots
 
 When a generation request includes `partialProfile: true`, snapshots and SSE progress events can include `result.partial_profile` while the run is still processing. The `partial_profile_ready` stage means the source-backed partial profile was generated. Check `result.partial_profile.profile_read` to see whether the partial profile sections are ready for profile-read queries.
