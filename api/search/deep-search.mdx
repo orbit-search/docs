@@ -217,6 +217,45 @@ Snapshot reads require the same API key that created the run.
 
 Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `partial_profile_ready`, `saving_profile`, `completed`, and `failed`.
 
+### Profile ID canonicalization
+
+All `orbit_id` values you receive remain valid, including in-progress candidate
+IDs from polling. If a candidate is later matched to an existing Orbit profile,
+the candidate ID becomes an alias that resolves to the canonical profile.
+
+Later snapshots and terminal `result.profile_ids` return the canonical
+`orbit_id` directly. If a polling snapshot appears to change from one `orbit_id`
+to another, the earlier ID is still safe to store and read. Calling
+`GET /v2/developer/profiles/:id` with either ID returns the canonical profile
+DTO, and the response's `payload.orbitId` is the canonical Orbit profile ID.
+
+Completed snapshots include the final profile IDs:
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "RUN_UUID",
+    "mode": "generation",
+    "status": "completed",
+    "stage": "completed",
+    "result": {
+      "profile_ids": [
+        {
+          "id": "PROFILE_ID",
+          "orbit_id": "ORBIT_PROFILE_ID"
+        }
+      ]
+    }
+  }
+}
+```
+
+If the run matched the generated candidate to an existing identity,
+`ORBIT_PROFILE_ID` is the existing profile's canonical Orbit ID. Use it as the
+preferred durable reference in new writes. You can still safely read any earlier
+candidate `orbit_id` because it resolves as an alias.
+
 ### Partial profile snapshots
 
 When a generation request includes `partialProfile: true`, snapshots and SSE progress events can include `result.partial_profile` while the run is still processing. The `partial_profile_ready` stage means the source-backed partial profile was generated. Check `result.partial_profile.profile_read` to see whether the partial profile sections are ready for profile-read queries.
