@@ -41,16 +41,21 @@ Completed Airflow/Snowflake work:
   - DagRun: `manual__orbit_identity_target_bootstrap__20260606T004407Z`
 - One scheduled run was created while the DAG was briefly unpaused and failed safely before data work.
 
-Snowflake state after target-table bootstrap:
+Current Snowflake state:
 
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_ALIASES`: 4 rows.
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_BIO_SECTIONS`: 0 rows.
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_FUN_FACTS`: 0 rows.
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_IMAGES`: 0 rows.
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_SOCIAL_HANDLES`: 0 rows.
-- `ORBIT_PROD.ORBIT.ORBIT_PROFILE_SOURCES`: 0 rows.
+- Checked on 2026-06-08 with `SHOW TABLES ... IN ACCOUNT`.
+- Existing CRDB source mirrors are in `SENDIT_PROD.SENDIT`, including `USERS`,
+  `ORBIT_PROFILES`, `SOCIAL_PROFILES`, `SOCIAL_PROFILE_RESPONSES`, and
+  `SOCIAL_MEDIA_HANDLES`.
+- The normalized identity mirror tables do not exist in Snowflake yet:
+  `ORBIT_PROFILE_ALIASES`, `ORBIT_PROFILE_BIO_SECTIONS`,
+  `ORBIT_PROFILE_FUN_FACTS`, `ORBIT_PROFILE_IMAGES`,
+  `ORBIT_PROFILE_SOCIAL_HANDLES`, and `ORBIT_PROFILE_SOURCES` all returned no
+  account-level table match.
 
-The new profile-owned Snowflake target tables exist. They are empty until the CRDB content backfills run. The resource-intensive full identity refresh should run after the backfill populates the new CRDB tables.
+The resource-intensive full identity refresh should run only after the CRDB
+content backfills and short-window delta complete. That refresh is expected to
+create/load the normalized Snowflake mirrors.
 
 ## Current Objective
 
