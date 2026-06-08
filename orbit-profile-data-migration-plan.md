@@ -180,8 +180,8 @@ Checked on 2026-06-06 using production ES credentials from Kubernetes-managed de
 - Alias cutover has not happened yet. Do not flip aliases until CRDB backfills,
   delta copy, service PR readiness, and validation gates pass.
 - Current relevant indices:
-  - `orbit_users_v1i`: green/open, 418,359,088 docs, 549 GB store size, 96 primaries, 1 replica.
-  - `orbit_users_v1j`: built as the Orbit-ID-keyed cutover index.
+  - `orbit_users_v1i`: green/open, 418,458,585 cat-index docs, 6,596,210 deleted docs, 549.7 GB store size, 96 primaries, 1 replica.
+  - `orbit_users_v1j`: green/open, 417,358,601 cat-index docs, 12,257 deleted docs, 581.7 GB store size, 96 primaries, 1 replica.
   - `orbit_users`: green/open, 3,000 docs, 3.4 MB, 1 primary, 1 replica.
 - In sampled `users_current_read` documents, ES `_id` and source `id` are generated/user-style IDs, while source `orbit_id` is a different canonical profile ID.
 - `sendit_id` is not mapped as a top-level field in `orbit_users_v1i`; the key serving issue is `_id` and source `id`, not a mapped `sendit_id` field.
@@ -216,10 +216,10 @@ ES migration implications:
 
 ## Live HelixDB Audit
 
-Checked on 2026-06-06 using the prod Helix endpoint and Kubernetes-managed deep-search API key. Updated on 2026-06-08 after the ES reindex audit.
+Checked on 2026-06-06 using the prod Helix endpoint and Kubernetes-managed deep-search API key. Updated on 2026-06-08 after the ES reindex audit and a fresh `CountPersons` read.
 
 - Production HelixDB is reachable.
-- `CountPersons` returned 85,909 `Person` nodes on the latest check.
+- `CountPersons` returned 85,924 `Person` nodes on the latest check.
 - One sampled profile resolved through both `GetPersonByOrbitId` and `GetPersonBySenditId` to the same Helix node, with both `orbit_id` and `sendit_id` properties present.
 - Sampled ES IDs can return empty Helix properties, so Helix is sparse relative
   to ES and should not be treated as a complete ES parity source.
