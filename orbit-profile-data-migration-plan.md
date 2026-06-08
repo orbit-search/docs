@@ -1,8 +1,47 @@
 # Orbit Profile Identity and Data Migration Execution Plan
 
-Status: Active execution planning  
-Date: 2026-06-05  
+Status: Active execution
+Date: 2026-06-08
 Audience: Orbit engineering, data platform, infrastructure, product engineering
+
+## 2026-06-08 Data Transfer Status
+
+Live identity data transfer is in progress through the manual Composer DAG
+`orbit_profile_identity_crdb_backfill` in `orbit-airflow` PR
+https://github.com/orbit-search/orbit-airflow/pull/108.
+
+Current full-copy cutoff:
+
+```text
+2026-06-06T11:50:45Z
+```
+
+Completed full-copy operations:
+
+1. `username`
+2. `avatar_url`
+3. `users_linked_orbit_id`
+4. `social_handles`
+5. `sources`
+6. `bio_sections`
+7. `basics`
+
+Remaining data-transfer sequence:
+
+1. Let the active `fun_facts` DagRun finish.
+2. Trigger `images` only after `fun_facts` reaches `success`.
+3. Wait for heavyweight `social_profile_responses` operations to go quiet.
+4. Run `basics_hidden_cleanup` dry-run, then live.
+5. Rerun patched `basics`.
+6. Run the short-window delta using `source_changed_after =
+   2026-06-06T11:50:45Z` and a fresh deployment-window `source_cutoff_at`.
+7. Run Cockroach validation, Snowflake identity refresh, service deploys, ES
+   alias cutover, and only then generated-user cleanup.
+
+Do not queue `images` while `fun_facts` is running. The DAG has
+`max_active_runs=1`; an early `images` trigger would only queue and could
+start after a failed `fun_facts` run. Keep the operation sequence explicit and
+one DagRun at a time.
 
 ## 2026-06-05 Execution Snapshot
 
