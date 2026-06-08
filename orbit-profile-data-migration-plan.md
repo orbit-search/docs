@@ -169,19 +169,21 @@ Do not backfill profile-owned content from:
 
 ## Live Elasticsearch Audit
 
-Checked on 2026-06-05 using production ES credentials from local Orbit env.
+Checked on 2026-06-06 using production ES credentials from Kubernetes-managed deep-search secrets. Updated on 2026-06-08 after the Orbit-ID reindex.
 
 - Cluster is reachable and green.
-- Cluster shape: 12 nodes, 241 active primary shards, 482 active shards, 0 unassigned shards.
+- Cluster shape: 12 nodes, 239 active primary shards, 478 active shards, 0 unassigned shards.
 - Current aliases:
   - `users_current -> orbit_users_v1i`, write index true.
   - `users_current_read -> orbit_users_v1i`.
   - `users_current_write -> orbit_users_v1i`, write index true.
+- Alias cutover has not happened yet. Do not flip aliases until CRDB backfills,
+  delta copy, service PR readiness, and validation gates pass.
 - Current relevant indices:
-  - `orbit_users_v1i`: green/open, 418,321,012 docs, 549.4 GB, 96 primaries, 1 replica.
+  - `orbit_users_v1i`: green/open, 418,359,088 docs, 549 GB store size, 96 primaries, 1 replica.
+  - `orbit_users_v1j`: built as the Orbit-ID-keyed cutover index.
   - `orbit_users`: green/open, 3,000 docs, 3.4 MB, 1 primary, 1 replica.
-- `orbit_profiles_current_read` and `orbit_profiles_current_write` do not exist yet.
-- In sampled `users_current` documents, ES `_id` and source `id` are generated/user-style IDs, while source `orbit_id` is a different canonical profile ID.
+- In sampled `users_current_read` documents, ES `_id` and source `id` are generated/user-style IDs, while source `orbit_id` is a different canonical profile ID.
 - `sendit_id` is not mapped as a top-level field in `orbit_users_v1i`; the key serving issue is `_id` and source `id`, not a mapped `sendit_id` field.
 - Sampled counts:
   - docs with source `orbit_id`: 225,101,012.
@@ -189,20 +191,38 @@ Checked on 2026-06-05 using production ES credentials from local Orbit env.
   - approximate unique `orbit_id`: 227,497,915.
   - approximate unique `id`: 223,132,937.
 
+`orbit_users_v1j` reindex results:
+
+- Source documents considered: 225,113,587.
+- Source documents missing `orbit_id`: 12,124.
+- Source documents with `orbit_id`: 225,101,463.
+- Destination documents: 225,100,355.
+- Destination documents missing `orbit_id`: 0.
+- `source_with_orbit_id - destination`: 1,108, explained by duplicate
+  `orbit_id` collisions collapsing to one canonical document.
+- Sampled destination documents: 100/100 had ES `_id = orbit_id`.
+- Running ES reindex tasks: 0. Destination refresh completed.
+
 ES migration implications:
 
-- Build a new `orbit_profiles` index family instead of mutating `users_current` in place.
-- New aliases should be `orbit_profiles_current_read` and `orbit_profiles_current_write`.
-- New ES document `_id` and source `id` should both be canonical `orbit_id`.
-- Keep `users_current` untouched as rollback/read fallback until `orbit_profiles_current_read` parity and hydration checks pass.
+- Use the rebuilt `orbit_users_v1j` index for the first cutover rather than
+  mutating `orbit_users_v1i` in place.
+- New ES document `_id` should be canonical `orbit_id`; source `orbit_id` must
+  be present on every destination document.
+- Keep `users_current` aliases on `orbit_users_v1i` as rollback/read fallback
+  until post-backfill parity and hydration checks pass.
+- Cut over `users_current`, `users_current_read`, and `users_current_write` to
+  `orbit_users_v1j` only during the final deployment window.
 
 ## Live HelixDB Audit
 
-Checked on 2026-06-05 using the prod API Helix endpoint and Kubernetes-managed API key.
+Checked on 2026-06-06 using the prod Helix endpoint and Kubernetes-managed deep-search API key. Updated on 2026-06-08 after the ES reindex audit.
 
 - Production HelixDB is reachable.
-- `CountPersons` returned 85,052 `Person` nodes.
+- `CountPersons` returned 85,909 `Person` nodes on the latest check.
 - One sampled profile resolved through both `GetPersonByOrbitId` and `GetPersonBySenditId` to the same Helix node, with both `orbit_id` and `sendit_id` properties present.
+- Sampled ES IDs can return empty Helix properties, so Helix is sparse relative
+  to ES and should not be treated as a complete ES parity source.
 - Current query bundle still exposes both canonical and Sendit-ID routes.
 
 Canonical/current-target routes include:
@@ -285,7 +305,8 @@ Before generated-user cleanup:
 
 - Stop creating/requiring generated users for new profiles.
 - Write normalized profile-owned rows keyed by `orbit_id`.
-- Index ES by `_id = orbit_id` after new ES aliases exist.
+- Index ES by `_id = orbit_id`; the current cutover target is
+  `orbit_users_v1j` behind the existing `users_current*` aliases.
 
 `slipi-management-portal`:
 
@@ -307,7 +328,8 @@ Before generated-user cleanup:
 - Missing Snowflake source/target coverage.
 - Stale Snowflake mirrors.
 - `ORBIT_CRDB_TO_SNOWFLAKE_TABLE_ALLOWLIST` skips any required table.
-- `orbit_profiles_current_read` / `orbit_profiles_current_write` missing before ES writer cutover.
+- `orbit_users_v1j` parity, `_id = orbit_id`, and destination hydration checks
+  fail before ES alias cutover.
 - 2020-api or Deep Search still requires generated `users.id` for profile serving.
 - HelixDB/search-directory sampled reads fail by canonical `orbit_id`.
 - Cleanup path is anything other than reviewed identity cleanup DAG/script with explicit dry-run and confirmation token.
