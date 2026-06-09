@@ -46,7 +46,7 @@ Your error handling should always read the `error.code` field to determine what 
     |------|------|-------------|
     | 401 | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided. Add the header with a valid developer API key. |
     | 403 | `invalid_api_key` | The key is malformed, revoked, expired, or unknown. Verify the key is active in your key list and has not been revoked or expired. |
-    | 403 | `missing_api_key_scope` | The key does not include the scope required for this endpoint. For search, the key needs `search:read`; for profile reads, it needs `profile:read`. Issue a replacement key with the correct scopes in the dashboard. |
+    | 403 | `missing_api_key_scope` | The key does not include the scope required for this endpoint. For search, profile query, and Deep Search, the key needs `search:read`; for profile reads, it needs `profile:read`. Issue a replacement key with the correct scopes in the dashboard. |
     | 403 | `api_key_management_requires_user_auth` | A developer API key attempted to create, list, revoke, or delete keys. Manage keys in the Orbit developer dashboard instead. |
 
     Example handling:
@@ -72,6 +72,10 @@ Your error handling should always read the `error.code` field to determine what 
     | `developer_num_users_limit_exceeded` | `numUsers` exceeds the maximum of 100. Reduce the value to 100 or below. |
     | `developer_user_id_override_forbidden` | The request body includes a `userId` field, which is not permitted for developer API key requests. Remove the field. |
     | `developer_search_replay_unsupported` | The request body includes a `searchId` field. Search replay is not supported for developer API key requests. Remove the field. |
+    | `developer_profile_query_required` | Profile Query is missing a non-empty `query`. |
+    | `developer_profile_query_too_long` | Profile Query received a `query` longer than 1,000 characters. |
+    | `developer_profile_query_limit_invalid` | Profile Query received a `limit` that is not a positive integer. |
+    | `developer_profile_query_limit_exceeded` | Profile Query received a `limit` greater than 50. |
     | `developer_deep_search_field_unsupported` | Deep Search received a top-level body field other than `mode`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, `partialProfile`, or `structuredIntent`. |
     | `developer_deep_search_input_required` | Deep Search did not receive a supported input. |
     | `developer_deep_search_email_invalid` | Deep Search received a malformed `email`. |
@@ -103,6 +107,10 @@ Your error handling should always read the `error.code` field to determine what 
       "developer_num_users_limit_exceeded",
       "developer_user_id_override_forbidden",
       "developer_search_replay_unsupported",
+      "developer_profile_query_required",
+      "developer_profile_query_too_long",
+      "developer_profile_query_limit_invalid",
+      "developer_profile_query_limit_exceeded",
       "developer_deep_search_field_unsupported",
       "developer_deep_search_input_required",
       "developer_deep_search_email_invalid",
@@ -167,8 +175,8 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for Search, 10 for Deep Search, 1 for profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
-    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 search or Deep Search requests per 60 seconds per API key (120 profile reads per 60 seconds). Back off and retry after the window resets. |
+    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for Search, 10 for Deep Search, 1 for Profile Query or profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
+    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 Search or Profile Query requests per 60 seconds per API key. Deep Search has a separate 60 requests per 60 seconds limit for start, snapshot, and events. Profile reads are limited to 120 requests per 60 seconds. Back off and retry after the window resets. |
 
     Credit-insufficient response example:
 
@@ -260,7 +268,7 @@ Your error handling should always read the `error.code` field to determine what 
   <Accordion title="Not found">
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 404 | `developer_profile_not_found` | The profile ID does not resolve to a public Orbit profile. The profile may have been removed, made private, or the ID may be incorrect. Profile reads that return this error are automatically refunded. |
+    | 404 | `developer_profile_not_found` | The profile ID does not resolve to a public Orbit profile. The profile may have been removed, made private, or the ID may be incorrect. Profile reads and Profile Query requests that return this error are automatically refunded. |
 
     Example handling:
 
@@ -277,7 +285,7 @@ Your error handling should always read the `error.code` field to determine what 
 
 | Status | Codes |
 |--------|-------|
-| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `structured_intent_required`, `structured_intent_invalid`, `structured_intent_version_unsupported`, `structured_intent_entity_clauses_unsupported`, `structured_intent_server_owned_field`, `search_directory_cross_org_scope_unsupported`, `developer_deep_search_field_unsupported`, `developer_deep_search_input_required`, `developer_deep_search_email_invalid`, `developer_deep_search_phone_invalid`, `developer_deep_search_linkedin_invalid`, `developer_deep_search_field_invalid`, `developer_deep_search_email_only_unsupported`, `developer_deep_search_generation_input_required`, `developer_deep_search_generation_minimum_path_required`, `developer_deep_search_phone_name_required`, `developer_deep_search_candidate_discovery_structured_intent_only`, `developer_deep_search_partial_profile_invalid`, `developer_deep_search_partial_profile_generation_only`, `developer_deep_search_name_required`, `developer_deep_search_arbitrary_input_required`, `developer_deep_search_personalization_unsupported` |
+| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `developer_profile_query_required`, `developer_profile_query_too_long`, `developer_profile_query_limit_invalid`, `developer_profile_query_limit_exceeded`, `structured_intent_required`, `structured_intent_invalid`, `structured_intent_version_unsupported`, `structured_intent_entity_clauses_unsupported`, `structured_intent_server_owned_field`, `search_directory_cross_org_scope_unsupported`, `developer_deep_search_field_unsupported`, `developer_deep_search_input_required`, `developer_deep_search_email_invalid`, `developer_deep_search_phone_invalid`, `developer_deep_search_linkedin_invalid`, `developer_deep_search_field_invalid`, `developer_deep_search_email_only_unsupported`, `developer_deep_search_generation_input_required`, `developer_deep_search_generation_minimum_path_required`, `developer_deep_search_phone_name_required`, `developer_deep_search_candidate_discovery_structured_intent_only`, `developer_deep_search_partial_profile_invalid`, `developer_deep_search_partial_profile_generation_only`, `developer_deep_search_name_required`, `developer_deep_search_arbitrary_input_required`, `developer_deep_search_personalization_unsupported` |
 | 401 | `missing_api_key` |
 | 402 | `developer_api_credits_insufficient` |
 | 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `search_directory_access_api_key_forbidden` |
