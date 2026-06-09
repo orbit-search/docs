@@ -1,0 +1,299 @@
+---
+title: "POST /v2/developer/profiles/:id/query - profile query"
+sidebarTitle: "Profile query"
+description: "Search within a single public Orbit profile. Use a profile ID from Search or Profile Read, ask a plain-English question, and receive matching public facts with sources."
+---
+
+The profile query endpoint searches the public facts and profile sections for one Orbit profile. Use it after [Search](/api/search/smart-search) returns a profile, or after [Profile read](/api/search/profile-read) confirms the profile you want to inspect. Each successful request costs 1 credit. Requests that fail validation, hit a rate limit, have insufficient credits, or target a missing profile do not consume credits.
+
+## Authentication
+
+Include your developer API key in every request. The key must have the `search:read` scope.
+
+```http
+Authorization: Bearer sk_orb_...
+```
+
+## Request
+
+```http
+POST /v2/developer/profiles/:id/query
+```
+
+### Headers
+
+| Header | Required | Description |
+|---|---|---|
+| `Authorization` | Yes | `Bearer sk_orb_...` with `search:read` scope |
+| `Content-Type` | Yes | `application/json` |
+| `Idempotency-Key` | No | A UUID or client-generated key for safe retries |
+
+<Tip>
+Always send an `Idempotency-Key` header. If you omit it, the server uses the request ID, which prevents duplicate charges within a single request but cannot deduplicate a client-side retry. Use a fresh idempotency key for every new profile query.
+</Tip>
+
+### Path parameters
+
+<ParamField path="id" type="string" required>
+  The profile ID to search. This is the `id` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response. You can also pass the public `orbitId` from a [Profile read](/api/search/profile-read) response.
+</ParamField>
+
+### Body parameters
+
+<ParamField body="query" type="string" required>
+  Plain-English question or topic to search for inside this profile. The value is trimmed before searching and must be 1,000 characters or fewer.
+
+  Example: `"founder experience"`, `"music credits"`, `"publications about machine learning"`
+</ParamField>
+
+<ParamField body="limit" type="number">
+  Maximum number of matching facts to return. Must be a positive integer. Defaults to `10`. Maximum value is `50`.
+</ParamField>
+
+### Example request
+
+```bash
+curl -X POST "$API_BASE/v2/developer/profiles/usr_a1b2c3d4e5f6/query" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founder experience","limit":5}'
+```
+
+## Response
+
+### 200 Success
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "profile": {
+      "id": "orbit-profile-id",
+      "orbitId": "orbit-profile-id",
+      "displayName": "Ada Lovelace"
+    },
+    "query": "founder experience",
+    "matches": [
+      {
+        "section": "jobs",
+        "text": "Founded Example Analytics after publishing work on analytical engines.",
+        "score": 0.92,
+        "sources": [
+          {
+            "url": "https://example.com/ada",
+            "name": "Example Source",
+            "title": "Ada Lovelace profile"
+          }
+        ],
+        "createdAt": "2026-02-12T18:44:21.000Z",
+        "updatedAt": "2026-05-18T09:17:42.000Z"
+      }
+    ]
+  }
+}
+```
+
+<ResponseField name="status" type="string" required>
+  Always `"success"` for a 200 response.
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  <Expandable title="properties" defaultOpen>
+    <ResponseField name="payload.profile" type="object" required>
+      The profile that was searched.
+
+      <Expandable title="properties">
+        <ResponseField name="payload.profile.id" type="string" required>
+          The public profile identifier returned by the API. This is the `orbitId` when available. If the profile does not have an `orbitId`, this falls back to the profile identifier you supplied in the path and can be used again as `:id` for Profile Query or Profile Read.
+        </ResponseField>
+        <ResponseField name="payload.profile.orbitId" type="string">
+          The stable Orbit profile identifier. Present when the profile has an Orbit ID. Prefer this value for caching and cross-surface correlation when it is present.
+        </ResponseField>
+        <ResponseField name="payload.profile.displayName" type="string">
+          The user's public display name.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+
+    <ResponseField name="payload.query" type="string" required>
+      The trimmed query that was searched.
+    </ResponseField>
+
+    <ResponseField name="payload.matches" type="array" required>
+      Matching public facts and profile-section snippets, ordered by relevance.
+
+      <Expandable title="item properties">
+        <ResponseField name="payload.matches[].section" type="string" required>
+          Public profile section where the match belongs, such as `basic`, `jobs`, `education`, `portfolio`, `mediaCredits`, or `musicCredits`.
+        </ResponseField>
+        <ResponseField name="payload.matches[].text" type="string" required>
+          Public-safe text for the matched fact or section item.
+        </ResponseField>
+        <ResponseField name="payload.matches[].score" type="number" required>
+          Relevance score normalized between `0` and `1`.
+        </ResponseField>
+        <ResponseField name="payload.matches[].sources" type="array">
+          Public sources attached to the matched fact, when available.
+
+          <Expandable title="source properties">
+            <ResponseField name="payload.matches[].sources[].url" type="string" required>
+              Source URL.
+            </ResponseField>
+            <ResponseField name="payload.matches[].sources[].name" type="string">
+              Source name or publisher, when available.
+            </ResponseField>
+            <ResponseField name="payload.matches[].sources[].title" type="string">
+              Source title, when available.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="payload.matches[].createdAt" type="string">
+          ISO timestamp for when the matched fact was created, when available.
+        </ResponseField>
+        <ResponseField name="payload.matches[].updatedAt" type="string">
+          ISO timestamp for when the matched fact or section was last updated, when available.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+Profile query returns only public profile facts and public-safe section text. It does not expose raw contact details, private profile-owner data, internal moderation metadata, raw enrichment records, or Sendit identifiers.
+</Note>
+
+## Empty matches
+
+A successful profile query can return an empty `matches` array when the profile exists but no public fact matches the query:
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "profile": {
+      "id": "orbit-profile-id",
+      "orbitId": "orbit-profile-id",
+      "displayName": "Ada Lovelace"
+    },
+    "query": "favorite espresso machine",
+    "matches": []
+  }
+}
+```
+
+Empty matches on an existing profile are a successful request and consume credits. A missing or private profile returns `developer_profile_not_found` and is refunded.
+
+## Credits
+
+Each successful profile query costs **1 credit**. Validation failures, authentication failures, rate-limit failures, insufficient-credit responses, and `developer_profile_not_found` responses do not consume credits.
+
+## Rate limits
+
+**60 requests per 60 seconds** per API key. Profile query shares the search rate-limit bucket with `POST /v2/developer/search` and `POST /v2/developer/search/sse`. A `429` response does not consume credits.
+
+## Error responses
+
+| Status | Code | Description |
+|---|---|---|
+| `400` | `developer_profile_query_required` | `query` is missing, empty, or not a string |
+| `400` | `developer_profile_query_too_long` | `query` is longer than 1,000 characters |
+| `400` | `developer_profile_query_limit_invalid` | `limit` is not a positive integer |
+| `400` | `developer_profile_query_limit_exceeded` | `limit` is greater than 50 |
+| `401` | `missing_api_key` | No `Authorization: Bearer sk_orb_...` header was provided |
+| `402` | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of a profile query |
+| `403` | `invalid_api_key` | The key is malformed, revoked, expired, or unknown |
+| `403` | `missing_api_key_scope` | The key does not have the `search:read` scope |
+| `404` | `developer_profile_not_found` | The profile ID does not resolve to a public Orbit profile. The request is refunded. |
+| `409` | `developer_api_idempotency_key_conflict` | The idempotency key was reused with different request parameters |
+| `409` | `developer_api_idempotency_key_refunded` | The idempotency key belongs to a previously refunded request |
+| `429` | `developer_api_key_rate_limited` | You have exceeded 60 search or profile query requests per 60 seconds for this API key |
+
+## Code example
+
+The example below shows the full search-to-profile-query flow: run a search, extract the first profile ID from the response, then search inside that profile.
+
+<CodeGroup>
+
+```bash cURL
+SEARCH_RESPONSE=$(
+  curl -s -X POST "$API_BASE/v2/developer/search" \
+    -H "Authorization: Bearer sk_orb_REDACTED" \
+    -H "Content-Type: application/json" \
+    -d '{"query":"founders in sf","numUsers":10}'
+)
+
+PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
+
+curl -X POST "$API_BASE/v2/developer/profiles/$PROFILE_ID/query" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founder experience","limit":5}'
+```
+
+```javascript JavaScript
+// Step 1: run a search
+const searchResponse = await fetch(`${API_BASE}/v2/developer/search`, {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ query: "founders in sf", numUsers: 10 }),
+});
+
+const searchData = await searchResponse.json();
+const profileId = searchData.payload.users[0].id;
+
+// Step 2: search inside the selected profile
+const profileQueryResponse = await fetch(
+  `${API_BASE}/v2/developer/profiles/${profileId}/query`,
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer sk_orb_REDACTED",
+      "Idempotency-Key": crypto.randomUUID(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: "founder experience", limit: 5 }),
+  }
+);
+
+const profileQuery = await profileQueryResponse.json();
+console.log(profileQuery.payload.matches);
+```
+
+```python Python
+import uuid
+import requests
+
+# Step 1: run a search
+search_response = requests.post(
+    f"{API_BASE}/v2/developer/search",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Content-Type": "application/json",
+    },
+    json={"query": "founders in sf", "numUsers": 10},
+)
+
+search_data = search_response.json()
+profile_id = search_data["payload"]["users"][0]["id"]
+
+# Step 2: search inside the selected profile
+profile_query_response = requests.post(
+    f"{API_BASE}/v2/developer/profiles/{profile_id}/query",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Idempotency-Key": str(uuid.uuid4()),
+        "Content-Type": "application/json",
+    },
+    json={"query": "founder experience", "limit": 5},
+)
+
+profile_query = profile_query_response.json()
+print(profile_query["payload"]["matches"])
+```
+
+</CodeGroup>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "name": "Orbit Search",
-  "description": "Developer documentation for the Orbit Search API, API keys, directories, credits, and profile search workflows.",
+  "description": "Developer documentation for the Orbit Search API, API keys, directories, credits, and profile query workflows.",
   "theme": "luma",
   "logo": {
     "light": "/assets/orbit-logo-mark.png",
@@ -97,7 +97,8 @@
               "api/search/smart-search",
               "api/search/structured-dsl",
               "api/search/deep-search",
-              "api/search/profile-read"
+              "api/search/profile-read",
+              "api/search/profile-query"
             ]
           },
           {
