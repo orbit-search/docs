@@ -4,9 +4,9 @@ sidebarTitle: "Deep Search"
 description: "Start an async Deep Search run from a developer API key, then poll the status endpoint until the run completes."
 ---
 
-Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — a LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, results can be delivered partial-first: a fast, source-backed partial profile can become available before full generation finishes.
+Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — a LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, the generated profile can be produced partial-first: a fast, source-backed partial profile can become available before full generation finishes.
 
-You start a run with `POST /v2/developer/deep-search` and poll `GET /v2/developer/deep-search/{requestId}` until the run completes. There is no streaming endpoint; the previous SSE events route has been removed.
+You start a run with `POST /v2/developer/deep-search` and poll `GET /v2/developer/deep-search/{requestId}` until the run completes. The status response returns the durable `profile_id` only; fetch the generated profile body separately with `GET /v2/developer/profiles/:id`. There is no streaming endpoint; the previous SSE events route has been removed.
 
 <Warning>
 This endpoint replaced its previous contract in place. The legacy `mode`, `partialProfile`, `dry_run`, and `options` fields are rejected with a `400 developer_deep_search_field_unsupported` error that names the legacy field and its replacement. Runs are always real — there is no dry run. See [Migrating from the previous contract](#migrating-from-the-previous-contract).
@@ -77,7 +77,7 @@ The request body is a strict allowlist: `requestId`, `runShape`, `structuredInte
 
 ### Run shapes
 
-| Run shape | What you get | When to use it |
+| Run shape | What gets generated | When to use it |
 |---|---|---|
 | `partial_only` (default) | A fast, source-backed partial profile, and nothing further. | You want the quickest usable profile and do not need full enrichment. |
 | `partial_plus_full` | The fast partial profile first, then a fully enriched profile afterwards. | You want a profile available quickly and a fully enriched profile to land later. |
@@ -170,7 +170,7 @@ After the run completes:
 </ResponseField>
 
 <ResponseField name="result" type="object | null" required>
-  `null` until the run completes. On completion it contains the generated profile data — currently the Orbit profile id as `profile_id`. Read the generated profile with `GET /v2/developer/profiles/:id`.
+  `null` until the run completes. On completion it contains the durable Orbit profile id as `profile_id` only. Read the generated profile body with `GET /v2/developer/profiles/:id`.
 </ResponseField>
 
 Requests for an unknown `requestId` return `404` with code `developer_deep_search_run_not_found`.
