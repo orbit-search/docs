@@ -1,39 +1,92 @@
 ---
-title: "POST /v2/developer/search — search"
-sidebarTitle: "Search"
+title: "Search"
 description: "Run a natural language search against Orbit's people index. Returns ranked profiles. Supports global and directory scopes. Costs 2 credits per successful request."
+api: "POST /v2/developer/search"
 ---
 
 The search endpoint accepts a plain English query and returns a ranked list of matching profiles. Orbit resolves your query through structured, semantic, and agentic search modes automatically — you don't need to specify a mode. Each successful request costs credits; requests that return no results or fail validation are refunded.
 
-## Authentication
+Requests authenticate with a developer API key that has the `search:read` scope. See [Authentication](/authentication).
 
-Include your developer API key in every request. The key must have the `search:read` scope.
+<RequestExample>
 
-```http
-Authorization: Bearer sk_orb_...
+```bash curl
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"founders in sf","numUsers":10}'
 ```
 
-## Request
+```javascript JavaScript
+const response = await fetch("https://api.orbitsearch.com/v2/developer/search", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Idempotency-Key": "request-uuid-or-client-retry-key",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    query: "founders in sf",
+    numUsers: 10,
+  }),
+});
 
-```http
-POST /v2/developer/search
-POST /v2/developer/search/sse
+const data = await response.json();
+console.log(data.payload.users);
 ```
 
-### Headers
+```python Python
+import requests
 
-| Header | Required | Description |
-|---|---|---|
-| `Authorization` | Yes | `Bearer sk_orb_...` with `search:read` scope |
-| `Content-Type` | Yes | `application/json` |
-| `Idempotency-Key` | No | A UUID or client-generated key for safe retries |
+response = requests.post(
+    "https://api.orbitsearch.com/v2/developer/search",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Idempotency-Key": "request-uuid-or-client-retry-key",
+        "Content-Type": "application/json",
+    },
+    json={
+        "query": "founders in sf",
+        "numUsers": 10,
+    },
+)
+
+data = response.json()
+print(data["payload"]["users"])
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+  "status": "success",
+  "searchId": "uuid",
+  "payload": {
+    "users": []
+  }
+}
+```
+
+</ResponseExample>
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  `Bearer sk_orb_...` with the `search:read` scope.
+</ParamField>
+
+<ParamField header="Idempotency-Key" type="string">
+  A UUID or client-generated key for safe retries.
+</ParamField>
 
 <Tip>
 Always send an `Idempotency-Key` header. If you omit it, the server uses the request ID, which prevents duplicate charges within a single request but cannot deduplicate a client-side retry. Use a fresh idempotency key for every new request attempt.
 </Tip>
 
-### Body parameters
+## Body parameters
 
 <ParamField body="query" type="string" required>
   Natural language description of the people you're searching for. Cannot be empty.
@@ -75,7 +128,7 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
   - **Personal API keys can only use global search.** To use a directory scope, you must use an organization API key.
 </Note>
 
-### Search scope examples
+## Search scope examples
 
 <Tabs>
   <Tab title="Global">
@@ -119,7 +172,7 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
   </Tab>
 </Tabs>
 
-### Structured DSL example
+## Structured DSL example
 
 Use `structuredIntent` to provide explicit search clauses while still sending a human-readable `query`:
 
@@ -147,7 +200,7 @@ The plain-English `query` is used for moderation, logging, summaries, match reas
 Use `POST /v2/developer/search/sse` when you want the initial results immediately and match-reason updates as they are generated. The SSE endpoint accepts the same request body as synchronous search, including `structuredIntent`, `searchScope`, and `includeMatchReason`.
 
 ```bash
-curl -N -X POST "$API_BASE/v2/developer/search/sse" \
+curl -N -X POST "https://api.orbitsearch.com/v2/developer/search/sse" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
@@ -168,18 +221,6 @@ data: {"id":"PROFILE_ID","orbitId":"ORBIT_PROFILE_ID","matchReason":{"reason":".
 Validation, authentication, rate-limit, and credit failures before the stream starts return regular JSON errors. After the stream starts, errors are emitted on the event stream.
 
 ## Response
-
-### 200 Success
-
-```json
-{
-  "status": "success",
-  "searchId": "uuid",
-  "payload": {
-    "users": []
-  }
-}
-```
 
 <ResponseField name="status" type="string" required>
   Always `"success"` for a 200 response.
@@ -263,55 +304,3 @@ Each successful search costs **2 credits** by default, regardless of `numUsers` 
     | `developer_api_key_rate_limited` | You have exceeded 60 requests per 60 seconds for this API key |
   </Accordion>
 </AccordionGroup>
-
-## Code examples
-
-<CodeGroup>
-
-```bash curl
-curl -X POST "$API_BASE/v2/developer/search" \
-  -H "Authorization: Bearer sk_orb_REDACTED" \
-  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"founders in sf","numUsers":10}'
-```
-
-```javascript JavaScript
-const response = await fetch(`${API_BASE}/v2/developer/search`, {
-  method: "POST",
-  headers: {
-    "Authorization": "Bearer sk_orb_REDACTED",
-    "Idempotency-Key": "request-uuid-or-client-retry-key",
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    query: "founders in sf",
-    numUsers: 10,
-  }),
-});
-
-const data = await response.json();
-console.log(data.payload.users);
-```
-
-```python Python
-import requests
-
-response = requests.post(
-    f"{API_BASE}/v2/developer/search",
-    headers={
-        "Authorization": "Bearer sk_orb_REDACTED",
-        "Idempotency-Key": "request-uuid-or-client-retry-key",
-        "Content-Type": "application/json",
-    },
-    json={
-        "query": "founders in sf",
-        "numUsers": 10,
-    },
-)
-
-data = response.json()
-print(data["payload"]["users"])
-```
-
-</CodeGroup>

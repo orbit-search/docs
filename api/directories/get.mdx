@@ -1,0 +1,17 @@
+---
+title: "Get a directory"
+description: "Return a single Orbit Search directory by ID."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}"
+---
+
+Returns a single directory by ID.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to retrieve.
+</ParamField>

@@ -54,7 +54,7 @@ Personal keys meter credits against your user account. Organization keys meter c
 Pass the raw key in the `Authorization` header:
 
 ```bash
-curl -X POST "$API_BASE/v2/developer/search" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
   -H "Authorization: Bearer $ORBIT_API_KEY" \
   -H "Idempotency-Key: $(uuidgen)" \
   -H "Content-Type: application/json" \

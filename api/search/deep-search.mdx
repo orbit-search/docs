@@ -1,43 +1,99 @@
 ---
-title: "POST /v2/developer/deep-search - generate profiles"
-sidebarTitle: "Deep Search"
-description: "Start an async Deep Search run from a developer API key, then poll the status endpoint until the run completes."
+title: "Start a Deep Search run"
+sidebarTitle: "Start Deep Search"
+description: "Start an async Deep Search profile generation run from one or more identity signals using a developer API key."
+api: "POST /v2/developer/deep-search"
 ---
 
 Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — a LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, the generated profile can be produced partial-first: a fast, source-backed partial profile can become available before full generation finishes.
 
-You start a run with `POST /v2/developer/deep-search` and poll `GET /v2/developer/deep-search/{requestId}` until the run completes. The status response returns the durable `profile_id` only; fetch the generated profile body separately with `GET /v2/developer/profiles/:id`. There is no streaming endpoint; the previous SSE events route has been removed.
+After starting a run, poll [`GET /v2/developer/deep-search/{requestId}`](/api/search/deep-search-status) until the run completes. The status response returns the durable `profile_id` only; fetch the generated profile body separately with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read). There is no streaming endpoint; the previous SSE events route has been removed.
+
+Requests authenticate with a developer API key that has the `search:read` scope. See [Authentication](/authentication).
 
 <Warning>
 This endpoint replaced its previous contract in place. The legacy `mode`, `partialProfile`, `dry_run`, and `options` fields are rejected with a `400 developer_deep_search_field_unsupported` error that names the legacy field and its replacement. Runs are always real — there is no dry run. See [Migrating from the previous contract](#migrating-from-the-previous-contract).
 </Warning>
 
-## Authentication
+<RequestExample>
 
-Include your developer API key in every request. The key must have the `search:read` scope.
-
-```http
-Authorization: Bearer sk_orb_...
+```bash curl
+curl -X POST "https://api.orbitsearch.com/v2/developer/deep-search" \
+  -H "Authorization: Bearer sk_orb_REDACTED" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "requestId": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+    "runShape": "partial_plus_full",
+    "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+    "email": "jane.doe@example.com"
+  }'
 ```
 
-## Start a run
+```javascript JavaScript
+const requestId = crypto.randomUUID();
 
-```http
-POST /v2/developer/deep-search
+const response = await fetch("https://api.orbitsearch.com/v2/developer/deep-search", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer sk_orb_REDACTED",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    requestId,
+    runShape: "partial_plus_full",
+    linkedinUrl: "https://www.linkedin.com/in/janedoe",
+    email: "jane.doe@example.com",
+  }),
+});
+
+const run = await response.json();
+console.log(run.request_id, run.status, run.links.status);
 ```
 
-The request body is a strict allowlist: `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, and `usernames`. Any other top-level field is rejected. At least one identity signal — `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` — is required.
+```python Python
+import uuid
+import requests
 
-```json
+request_id = str(uuid.uuid4())
+
+response = requests.post(
+    "https://api.orbitsearch.com/v2/developer/deep-search",
+    headers={
+        "Authorization": "Bearer sk_orb_REDACTED",
+        "Content-Type": "application/json",
+    },
+    json={
+        "requestId": request_id,
+        "runShape": "partial_plus_full",
+        "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+        "email": "jane.doe@example.com",
+    },
+)
+
+run = response.json()
+print(run["request_id"], run["status"])
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 202
 {
-  "requestId": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
-  "runShape": "partial_plus_full",
-  "linkedinUrl": "https://www.linkedin.com/in/janedoe",
-  "email": "jane.doe@example.com"
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "started",
+  "links": {
+    "status": "/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10"
+  }
 }
 ```
 
-### Request body
+</ResponseExample>
+
+## Body parameters
+
+The request body is a strict allowlist: `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, and `usernames`. Any other top-level field is rejected. At least one identity signal — `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` — is required.
 
 <ParamField body="requestId" type="string">
   Optional idempotency key for the run. Re-sending the same `requestId` returns `200` with `status: "already_running"` instead of starting a duplicate run. When omitted, the server generates one and returns it as `request_id`.
@@ -75,7 +131,7 @@ The request body is a strict allowlist: `requestId`, `runShape`, `structuredInte
   Deep Search does not have the synchronous search endpoint's API-key user network or location context, so `structuredIntent.personalization` is rejected here. Use `POST /v2/developer/search` when you need personalized network or near-me search behavior.
 </Note>
 
-### Run shapes
+## Run shapes
 
 | Run shape | What gets generated | When to use it |
 |---|---|---|
@@ -86,7 +142,7 @@ The request body is a strict allowlist: `requestId`, `runShape`, `structuredInte
 
 If the provided identity signals cannot start a Deep Search run, the request is rejected with `400 developer_deep_search_unprocessable_seed`.
 
-### Idempotency with requestId
+## Idempotency with requestId
 
 Idempotency is handled by the `requestId` body field rather than a header. Generate a UUID per logical run and re-send the same `requestId` on retries:
 
@@ -94,23 +150,12 @@ Idempotency is handled by the `requestId` body field rather than a header. Gener
 - Repeat request with the same `requestId` → `200` with `status: "already_running"` and the same identifiers; no duplicate run starts.
 - Omitted `requestId` → the server generates one and returns it as `request_id`. Store it; it is also the path parameter for status polling.
 
-### Response
+## Response
 
-`202` when a new run was started, `200` when an existing run was reused:
-
-```json
-{
-  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
-  "run_id": "RUN_ID",
-  "status": "started",
-  "links": {
-    "status": "/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10"
-  }
-}
-```
+`202` when a new run was started, `200` when an existing run was reused.
 
 <ResponseField name="request_id" type="string" required>
-  The run's durable id — your `requestId` if you sent one, otherwise server-generated. Use it as the path parameter when polling status and as the idempotency key on retries.
+  The run's durable id — your `requestId` if you sent one, otherwise server-generated. Use it as the path parameter when [polling status](/api/search/deep-search-status) and as the idempotency key on retries.
 </ResponseField>
 
 <ResponseField name="run_id" type="string" required>
@@ -125,60 +170,6 @@ Idempotency is handled by the `requestId` body field rather than a header. Gener
   `links.status` is the relative URL of the status endpoint for this run.
 </ResponseField>
 
-## Poll run status
-
-```http
-GET /v2/developer/deep-search/{requestId}
-```
-
-Poll the status endpoint until `status` is `completed` or `failed`. A few seconds between polls with backoff is appropriate; status reads share the Deep Search rate-limit bucket.
-
-While the run is in progress:
-
-```json
-{
-  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
-  "run_id": "RUN_ID",
-  "status": "running",
-  "result": null
-}
-```
-
-After the run completes:
-
-```json
-{
-  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
-  "run_id": "RUN_ID",
-  "status": "completed",
-  "result": {
-    "profile_id": "ORBIT_PROFILE_ID"
-  }
-}
-```
-
-<ResponseField name="request_id" type="string" required>
-  The run's durable id.
-</ResponseField>
-
-<ResponseField name="run_id" type="string | null" required>
-  An opaque tracking id for the run, or `null` if not available.
-</ResponseField>
-
-<ResponseField name="status" type="string" required>
-  `"running"`, `"completed"`, `"failed"`, or `"not_found"`. Treat `completed` and `failed` as terminal and stop polling. `not_found` is returned with a `404`.
-</ResponseField>
-
-<ResponseField name="result" type="object | null" required>
-  `null` until the run completes. On completion it contains the durable Orbit profile id as `profile_id` only. Read the generated profile body with `GET /v2/developer/profiles/:id`.
-</ResponseField>
-
-Requests for an unknown `requestId` return `404` with code `developer_deep_search_run_not_found`.
-
-<Note>
-  The SSE events route (`GET /v2/developer/deep-search/{requestId}/events`) has been removed. Poll the status endpoint instead.
-</Note>
-
 ## Migrating from the previous contract
 
 The endpoint paths are unchanged, but the request and response contracts are new. Legacy fields are rejected with `400 developer_deep_search_field_unsupported`, and the error message names the replacement:
@@ -191,7 +182,7 @@ The endpoint paths are unchanged, but the request and response contracts are new
 | `dry_run` | Removed; runs are always real |
 | `options` | Removed |
 | `Idempotency-Key` header | `requestId` body field |
-| `GET .../{id}/events` (SSE) | Poll `GET /v2/developer/deep-search/{requestId}` |
+| `GET .../{id}/events` (SSE) | Poll [`GET /v2/developer/deep-search/{requestId}`](/api/search/deep-search-status) |
 
 Identity signals are also more permissive than before: any one of `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` is enough to start a run. If the provided signals cannot start a run, the request fails with `developer_deep_search_unprocessable_seed` instead of a field-combination validation error.
 
@@ -240,11 +231,6 @@ The charge is idempotent on `requestId`: retrying the same `requestId` does not 
     | `developer_api_idempotency_key_conflict` | The `requestId` was already used with different request parameters |
     | `developer_api_idempotency_key_refunded` | The `requestId` belongs to a run whose charge was refunded; use a new `requestId` |
   </Accordion>
-  <Accordion title="404 - Not found">
-    | Code | Description |
-    |---|---|
-    | `developer_deep_search_run_not_found` | The `requestId` does not match a known run |
-  </Accordion>
   <Accordion title="429 - Rate limited">
     | Code | Description |
     |---|---|
@@ -264,77 +250,12 @@ The charge is idempotent on `requestId`: retrying the same `requestId` does not 
   </Accordion>
 </AccordionGroup>
 
-## Code examples
-
-Start a run from a LinkedIn seed with an email signal, requesting a fast partial followed by full generation:
+## Start a run from a structured intent seed
 
 <CodeGroup>
 
 ```bash curl
-curl -X POST "$API_BASE/v2/developer/deep-search" \
-  -H "Authorization: Bearer sk_orb_REDACTED" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "requestId": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
-    "runShape": "partial_plus_full",
-    "linkedinUrl": "https://www.linkedin.com/in/janedoe",
-    "email": "jane.doe@example.com"
-  }'
-```
-
-```javascript JavaScript
-const requestId = crypto.randomUUID();
-
-const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
-  method: "POST",
-  headers: {
-    "Authorization": "Bearer sk_orb_REDACTED",
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    requestId,
-    runShape: "partial_plus_full",
-    linkedinUrl: "https://www.linkedin.com/in/janedoe",
-    email: "jane.doe@example.com",
-  }),
-});
-
-const run = await response.json();
-console.log(run.request_id, run.status, run.links.status);
-```
-
-```python Python
-import uuid
-import requests
-
-request_id = str(uuid.uuid4())
-
-response = requests.post(
-    f"{API_BASE}/v2/developer/deep-search",
-    headers={
-        "Authorization": "Bearer sk_orb_REDACTED",
-        "Content-Type": "application/json",
-    },
-    json={
-        "requestId": request_id,
-        "runShape": "partial_plus_full",
-        "linkedinUrl": "https://www.linkedin.com/in/janedoe",
-        "email": "jane.doe@example.com",
-    },
-)
-
-run = response.json()
-print(run["request_id"], run["status"])
-```
-
-</CodeGroup>
-
-Start a run from a structured intent seed:
-
-<CodeGroup>
-
-```bash curl
-curl -X POST "$API_BASE/v2/developer/deep-search" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Content-Type: application/json" \
   -d '{
@@ -348,7 +269,7 @@ curl -X POST "$API_BASE/v2/developer/deep-search" \
 ```
 
 ```javascript JavaScript
-const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
+const response = await fetch("https://api.orbitsearch.com/v2/developer/deep-search", {
   method: "POST",
   headers: {
     "Authorization": "Bearer sk_orb_REDACTED",
@@ -372,7 +293,7 @@ console.log(run.request_id, run.links.status);
 import requests
 
 response = requests.post(
-    f"{API_BASE}/v2/developer/deep-search",
+    "https://api.orbitsearch.com/v2/developer/deep-search",
     headers={
         "Authorization": "Bearer sk_orb_REDACTED",
         "Content-Type": "application/json",
@@ -389,52 +310,6 @@ response = requests.post(
 
 run = response.json()
 print(run["request_id"], run["links"]["status"])
-```
-
-</CodeGroup>
-
-Poll until the run is terminal:
-
-<CodeGroup>
-
-```bash curl
-curl "$API_BASE/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10" \
-  -H "Authorization: Bearer sk_orb_REDACTED"
-```
-
-```javascript JavaScript
-const TERMINAL = new Set(["completed", "failed"]);
-
-let status;
-do {
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-  const response = await fetch(
-    `${API_BASE}/v2/developer/deep-search/${requestId}`,
-    { headers: { "Authorization": "Bearer sk_orb_REDACTED" } },
-  );
-  status = await response.json();
-} while (!TERMINAL.has(status.status));
-
-console.log(status.status, status.result);
-```
-
-```python Python
-import time
-import requests
-
-TERMINAL = {"completed", "failed"}
-
-while True:
-    response = requests.get(
-        f"{API_BASE}/v2/developer/deep-search/{request_id}",
-        headers={"Authorization": "Bearer sk_orb_REDACTED"},
-    )
-    status = response.json()
-    if status["status"] in TERMINAL:
-        break
-    time.sleep(5)
-
-print(status["status"], status["result"])
 ```
 
 </CodeGroup>

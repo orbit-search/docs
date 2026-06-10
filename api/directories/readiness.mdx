@@ -1,0 +1,17 @@
+---
+title: "Check directory readiness"
+description: "Return whether a directory is ready to receive search queries after source uploads complete."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}/readiness"
+---
+
+Returns whether the directory is ready to receive search queries. A directory is ready when at least one source has completed processing and its people are indexed. Check readiness before running your first search after an upload.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to check.
+</ParamField>

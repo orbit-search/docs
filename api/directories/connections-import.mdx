@@ -1,0 +1,46 @@
+---
+title: "Personal connection imports"
+description: "Import personal connections into your Personal Connections directory and treat them as a searchable source."
+---
+
+Personal connections are stored in the user's Personal Connections directory, which is a special `connections`-type directory auto-created for every user. You can import connections and then treat them as a searchable source like any other directory.
+
+---
+
+## Start an import
+
+`POST /v2/social/connections/import`
+
+Starts an asynchronous import job that processes connection data and materializes records into your Personal Connections directory. Returns a `jobId` you use to track progress.
+
+---
+
+## Check import status
+
+`GET /v2/social/connections/imports/:jobId`
+
+Returns the current status and progress of a connection import job.
+
+<ParamField path="jobId" type="string" required>
+  The ID of the import job returned by the start-import endpoint.
+</ParamField>
+
+---
+
+## Resume a paused import
+
+`POST /v2/social/connections/imports/:jobId/resume`
+
+Resumes a connection import job that is in a paused state.
+
+<ParamField path="jobId" type="string" required>
+  The ID of the paused import job.
+</ParamField>
+
+---
+
+## List personal connections
+
+`GET /v2/social/connections`
+
+Returns the list of personal connections that have been imported.

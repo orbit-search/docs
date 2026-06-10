@@ -1,0 +1,51 @@
+---
+title: "Upload and search workflow"
+description: "The end-to-end flow for populating an Orbit Search directory: upload a CSV, poll source status, check readiness, then run a directory-scoped search."
+---
+
+Sources are the feeds that populate a directory's searchable corpus. You upload a CSV file, the API validates and processes each row, and the accepted records become searchable people inside that directory. Uploads are incremental: each new upload creates an additional source rather than replacing the existing data, so multiple CSV uploads and imported connection sources all contribute to the same searchable corpus. Once you have uploaded data, use the readiness endpoint to confirm the directory is ready before running searches.
+
+<Steps>
+  <Step title="Upload a CSV">
+    Send a `POST` to the [csv-upload endpoint](/api/directories/sources-upload) with your file. Note the `source_id` in the response.
+
+    ```bash curl
+    curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+      -F "file=@contacts.csv"
+    ```
+  </Step>
+
+  <Step title="Poll source status">
+    Repeat `GET` requests to the [source status endpoint](/api/directories/sources-status) until `source_status` is `completed` or `failed`.
+
+    ```bash curl
+    curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/$SOURCE_ID/status" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+  </Step>
+
+  <Step title="Check directory readiness">
+    Confirm the directory is [ready to search](/api/directories/readiness) before issuing your first query.
+
+    ```bash curl
+    curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/readiness" \
+      -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+    ```
+  </Step>
+
+  <Step title="Run a directory-scoped search">
+    Use your organization API key to run a [search](/api/search/smart-search) scoped to the directory.
+
+    ```bash curl
+    curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
+      -H "Authorization: Bearer $ORG_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "query": "founders in sf",
+        "numUsers": 10,
+        "searchScope": { "type": "directory", "directoryId": "DIRECTORY_UUID" }
+      }'
+    ```
+  </Step>
+</Steps>

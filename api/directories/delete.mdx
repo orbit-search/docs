@@ -1,0 +1,21 @@
+---
+title: "Delete a directory"
+description: "Permanently delete an Orbit Search directory and all associated data."
+api: "DELETE /v2/organizations/{organizationId}/directories/{directoryId}"
+---
+
+Permanently deletes a directory and all associated data. This action cannot be undone.
+
+<Warning>
+  Deletion is permanent. The **Personal Connections** directory cannot be deleted.
+</Warning>
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to delete.
+</ParamField>

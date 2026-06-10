@@ -228,7 +228,7 @@ When both are set, Search treats them as one semantic group: `text` is the canon
 `POST /v2/developer/search/sse` accepts the same body as synchronous Search:
 
 ```bash
-curl -N -X POST "$API_BASE/v2/developer/search/sse" \
+curl -N -X POST "https://api.orbitsearch.com/v2/developer/search/sse" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \

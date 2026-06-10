@@ -1,0 +1,46 @@
+---
+title: "Create a grant"
+description: "Assign a permission to a principal — an organization, user, or API key — on a directory."
+api: "POST /v2/organizations/{organizationId}/directories/{directoryId}/grants"
+---
+
+Assigns a permission to a principal on the specified directory. If the principal already has a grant on this directory, the existing grant is updated. See [directory access grants](/api/directories/grants-overview) for the permission model.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to grant access on.
+</ParamField>
+
+### Request body
+
+<ParamField body="principal_type" type="string" required>
+  The type of principal receiving the grant. One of `organization`, `user`, or `api_key`.
+</ParamField>
+
+<ParamField body="principal_id" type="string" required>
+  The UUID of the principal — the organization ID, user ID, or API key ID depending on `principal_type`.
+</ParamField>
+
+<ParamField body="permission" type="string" required>
+  The permission to assign. One of `search`, `upload`, or `manage`.
+</ParamField>
+
+<RequestExample>
+
+```bash curl
+curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "principal_type": "api_key",
+    "principal_id": "API_KEY_UUID",
+    "permission": "search"
+  }'
+```
+
+</RequestExample>

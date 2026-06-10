@@ -1,0 +1,21 @@
+---
+title: "Get a source"
+description: "Return full metadata for a single source, including row counts and validation details."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}/sources/{sourceId}"
+---
+
+Returns full metadata for a single source, including row counts and validation details.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory.
+</ParamField>
+
+<ParamField path="sourceId" type="string" required>
+  The UUID of the source to retrieve.
+</ParamField>

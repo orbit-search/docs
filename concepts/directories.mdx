@@ -39,7 +39,7 @@ Sources are the feeds that populate a directory with searchable people.
     Uploads are idempotent when you provide an `idempotency_key`. Reusing the same key for the same upload skips duplicate processing.
 
     ```bash
-    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+    curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
       -F "file=@contacts.csv" \
       -F "idempotency_key=upload-2024-01"

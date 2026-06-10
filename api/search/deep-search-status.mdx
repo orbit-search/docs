@@ -1,0 +1,119 @@
+---
+title: "Get Deep Search run status"
+sidebarTitle: "Deep Search status"
+description: "Poll the status of an async Deep Search run until it completes, then read the generated profile by ID."
+api: "GET /v2/developer/deep-search/{requestId}"
+---
+
+Poll the status endpoint until `status` is `completed` or `failed`. A few seconds between polls with backoff is appropriate; status reads share the Deep Search rate-limit bucket. Status polling is free — it does not consume credits.
+
+On completion the result contains the durable `profile_id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
+
+Requests authenticate with a developer API key that has the `search:read` scope. See [Authentication](/authentication).
+
+<RequestExample>
+
+```bash curl
+curl "https://api.orbitsearch.com/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10" \
+  -H "Authorization: Bearer sk_orb_REDACTED"
+```
+
+```javascript JavaScript
+const TERMINAL = new Set(["completed", "failed"]);
+
+let status;
+do {
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  const response = await fetch(
+    `https://api.orbitsearch.com/v2/developer/deep-search/${requestId}`,
+    { headers: { "Authorization": "Bearer sk_orb_REDACTED" } },
+  );
+  status = await response.json();
+} while (!TERMINAL.has(status.status));
+
+console.log(status.status, status.result);
+```
+
+```python Python
+import time
+import requests
+
+TERMINAL = {"completed", "failed"}
+
+while True:
+    response = requests.get(
+        f"https://api.orbitsearch.com/v2/developer/deep-search/{request_id}",
+        headers={"Authorization": "Bearer sk_orb_REDACTED"},
+    )
+    status = response.json()
+    if status["status"] in TERMINAL:
+        break
+    time.sleep(5)
+
+print(status["status"], status["result"])
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 (running)
+{
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "running",
+  "result": null
+}
+```
+
+```json 200 (completed)
+{
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "completed",
+  "result": {
+    "profile_id": "ORBIT_PROFILE_ID"
+  }
+}
+```
+
+</ResponseExample>
+
+## Path parameters
+
+<ParamField path="requestId" type="string" required>
+  The run's durable id — the `request_id` returned by [`POST /v2/developer/deep-search`](/api/search/deep-search).
+</ParamField>
+
+## Response
+
+<ResponseField name="request_id" type="string" required>
+  The run's durable id.
+</ResponseField>
+
+<ResponseField name="run_id" type="string | null" required>
+  An opaque tracking id for the run, or `null` if not available.
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  `"running"`, `"completed"`, `"failed"`, or `"not_found"`. Treat `completed` and `failed` as terminal and stop polling. `not_found` is returned with a `404`.
+</ResponseField>
+
+<ResponseField name="result" type="object | null" required>
+  `null` until the run completes. On completion it contains the durable Orbit profile id as `profile_id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
+</ResponseField>
+
+<Note>
+  The SSE events route (`GET /v2/developer/deep-search/{requestId}/events`) has been removed. Poll the status endpoint instead.
+</Note>
+
+## Rate limits
+
+Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** per API key by default, shared across start and status requests.
+
+## Error responses
+
+| Status | Code | Description |
+|---|---|---|
+| `404` | `developer_deep_search_run_not_found` | The `requestId` does not match a known run |
+| `429` | `developer_api_key_rate_limited` | The API key exceeded the search rate limit |

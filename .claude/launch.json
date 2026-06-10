@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mint-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "mint", "dev", "--port", "3333"],
+      "port": 3333
+    }
+  ]
+}

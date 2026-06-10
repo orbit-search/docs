@@ -1,0 +1,21 @@
+---
+title: "Update source status"
+description: "Update the status of a source, for example to retry a failed upload."
+api: "PATCH /v2/organizations/{organizationId}/directories/{directoryId}/sources/{sourceId}/status"
+---
+
+Updates the status of a source, for example to retry a failed upload.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory.
+</ParamField>
+
+<ParamField path="sourceId" type="string" required>
+  The UUID of the source to update.
+</ParamField>

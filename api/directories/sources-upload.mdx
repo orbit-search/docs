@@ -1,0 +1,83 @@
+---
+title: "Upload a CSV source"
+description: "Upload a CSV file as a new source into an Orbit Search directory and poll its processing status."
+api: "POST /v2/organizations/{organizationId}/directories/{directoryId}/sources/csv-upload"
+---
+
+Uploads a CSV file as a new source into the specified directory. The request uses `multipart/form-data`. The API synchronously parses, validates, and materializes accepted rows, then returns processing metadata. Large uploads or rows requiring profile resolution may continue processing asynchronously — poll the [source status endpoint](/api/directories/sources-status) to track completion.
+
+<Warning>
+  Uploads are scoped to the directory's organization. Attempting to upload data to a directory that belongs to a different organization than the authenticated user's context will be rejected.
+</Warning>
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the target directory. The directory must not be archived.
+</ParamField>
+
+### Request body (multipart/form-data)
+
+<ParamField body="file" type="file" required>
+  The CSV file to upload.
+</ParamField>
+
+<ParamField body="idempotency_key" type="string">
+  An optional client-generated key. Reusing the same key with the same file makes the request idempotent — the API returns the original response without creating a duplicate source. If you reuse a key with a different file, the request is rejected.
+</ParamField>
+
+### Response fields
+
+<ResponseField name="source_id" type="string">
+  UUID of the newly created (or reused, if idempotent) source.
+</ResponseField>
+
+<ResponseField name="directory_id" type="string">
+  UUID of the directory this source belongs to.
+</ResponseField>
+
+<ResponseField name="source_status" type="string">
+  Current processing status of the source. See [source status values](#source-status-values) below.
+</ResponseField>
+
+<ResponseField name="accepted" type="number">
+  Number of rows accepted and materialized into the directory.
+</ResponseField>
+
+<ResponseField name="failed" type="number">
+  Number of rows that failed validation and were not imported.
+</ResponseField>
+
+<ResponseField name="warnings" type="number">
+  Number of rows accepted with non-fatal warnings.
+</ResponseField>
+
+<ResponseField name="is_idempotent" type="boolean">
+  `true` if this response was served from a previously completed upload with the same `idempotency_key`.
+</ResponseField>
+
+### Source status values
+
+Uploads process in two phases: the synchronous phase materializes as many rows as possible immediately, and any remaining work continues asynchronously under the source record. Poll the [status endpoint](/api/directories/sources-status) until `source_status` reaches a terminal state.
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Upload received; processing has not started. |
+| `processing` | Rows are being validated and materialized. |
+| `completed` | All rows have been processed. Check `accepted`, `failed`, and `warnings` for results. |
+| `failed` | Processing encountered an unrecoverable error. |
+
+<RequestExample>
+
+```bash curl
+curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -F "file=@/path/to/contacts.csv" \
+  -F "idempotency_key=upload-2024-q4-v1"
+```
+
+</RequestExample>
