@@ -12,8 +12,8 @@ Orbit Search uses a credit system to meter API usage. Credits are consumed per s
 |---|---|
 | Search (`POST /v2/developer/search`, `POST /v2/developer/search/sse`) | 2 per successful search |
 | Profile query (`POST /v2/developer/profiles/:id/query`) | 1 per successful profile query |
-| Deep Search (`POST /v2/developer/deep-search`) | 10 per accepted run |
 | Profile read (`GET /v2/developer/profiles/:id`) | 1 per successful read |
+| Deep Search (`POST /v2/developer/deep-search`) | 10 per started run |
 
 These are the default costs. Your operator may have configured different values.
 
@@ -21,7 +21,7 @@ These are the default costs. Your operator may have configured different values.
 
 Credits are reserved before the search executes. If your balance is too low to cover the cost of a request, the API rejects the request immediately — before any search work is done. This means a low-credit account fails fast rather than running a search and then failing on billing.
 
-If the search succeeds and returns results, a profile query completes against an existing profile, a profile read returns a profile, or a Deep Search run is accepted, the reservation is finalized and your balance decreases. If the search fails or returns no results (a `404` response for an empty result set), a profile query or profile read returns `developer_profile_not_found`, or Deep Search fails before a run is accepted, the reservation is cancelled and your balance is restored. Failed validation, authentication, rate-limit, and system errors also do not consume credits.
+If the search succeeds and returns results, a profile query completes against an existing profile, or a profile read returns a profile, the reservation is finalized and your balance decreases. If the search fails or returns no results (a `404` response for an empty result set), or a profile query or profile read returns `developer_profile_not_found`, the reservation is cancelled and your balance is restored. Failed validation, authentication, rate-limit, and system errors also do not consume credits.
 
 ## Checking your remaining credits
 
@@ -96,7 +96,7 @@ Rate limits are enforced per API key, not per IP address. Hitting a rate limit r
 | Endpoint | Default limit |
 |---|---|
 | Search (`POST /v2/developer/search`, `POST /v2/developer/search/sse`) and Profile query (`POST /v2/developer/profiles/:id/query`) | 60 requests per 60 seconds |
-| Deep Search start, snapshot, and events | 60 requests per 60 seconds |
+| Deep Search start and status (`POST /v2/developer/deep-search`, `GET /v2/developer/deep-search/:requestId`) | 60 requests per 60 seconds |
 | Profile read | 120 requests per 60 seconds |
 
 Rate limits and credits are independent. A request can be rate-limited (`429`) even when credits are available, and a request can be rejected for insufficient credits (`402`) even when the rate limit has capacity.

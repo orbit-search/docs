@@ -54,7 +54,7 @@ Search request bodies use these fields:
 | `searchScope` | object | No | Constrains where the search runs; defaults to `global` if omitted |
 | `structuredIntent` | object | No | Optional structured DSL plan for Search |
 
-`userId` and `searchId` are not accepted in developer search requests. `POST /v2/developer/search` returns one synchronous response. `POST /v2/developer/search/sse` streams the same initial payload plus follow-up events such as match-reason updates. Developer Deep Search is the async search surface and exposes its own snapshot and SSE progress endpoints.
+`userId` and `searchId` are not accepted in developer search requests. `POST /v2/developer/search` returns one synchronous response. `POST /v2/developer/search/sse` streams the same initial payload plus follow-up events such as match-reason updates. Developer Deep Search is the async surface: start a run with `POST /v2/developer/deep-search` and poll its status endpoint until the run completes.
 
 ## Search scopes
 

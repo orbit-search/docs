@@ -1,12 +1,16 @@
 ---
-title: "POST /v2/developer/deep-search - enrich profiles"
+title: "POST /v2/developer/deep-search - generate profiles"
 sidebarTitle: "Deep Search"
-description: "Start an async Deep Search run from a developer API key, then track profile generation progress by snapshot or SSE."
+description: "Start an async Deep Search run from a developer API key, then poll the status endpoint until the run completes."
 ---
 
-Developer Deep Search starts asynchronous profile enrichment from a singular identity seed, or candidate discovery from a structured search intent, and returns IDs you can use to track progress. Send `linkedinUrl`, `email + structuredIntent`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]` for profile generation. Use `structuredIntent` with `mode: "generation"` or `partialProfile: true` when structured intent should generate one profile. Send only `structuredIntent`, or set `mode: "candidate_discovery"`, when you want candidate discovery instead.
+Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — a LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, results can be delivered partial-first: a fast, source-backed partial profile can become available before full generation finishes.
 
-Each accepted run costs **10 credits**. Failed validation, failed enqueue, and other rejected requests do not consume credits.
+You start a run with `POST /v2/developer/deep-search` and poll `GET /v2/developer/deep-search/{requestId}` until the run completes. There is no streaming endpoint; the previous SSE events route has been removed.
+
+<Warning>
+This endpoint replaced its previous contract in place. The legacy `mode`, `partialProfile`, `dry_run`, and `options` fields are rejected with a `400 developer_deep_search_field_unsupported` error that names the legacy field and its replacement. Runs are always real — there is no dry run. See [Migrating from the previous contract](#migrating-from-the-previous-contract).
+</Warning>
 
 ## Authentication
 
@@ -22,313 +26,184 @@ Authorization: Bearer sk_orb_...
 POST /v2/developer/deep-search
 ```
 
-### Headers
+The request body is a strict allowlist: `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, and `usernames`. Any other top-level field is rejected. At least one identity signal — `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` — is required.
 
-| Header | Required | Description |
-|---|---|---|
-| `Authorization` | Yes | `Bearer sk_orb_...` with `search:read` scope |
-| `Content-Type` | Yes | `application/json` |
-| `Idempotency-Key` | Recommended | Client-generated key for safe retries |
-
-<Tip>
-Send an `Idempotency-Key` for every new Deep Search request. Reusing the same key with the same body returns the existing run. Reusing it with a different body returns a `409`.
-</Tip>
+```json
+{
+  "requestId": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "runShape": "partial_plus_full",
+  "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+  "email": "jane.doe@example.com"
+}
+```
 
 ### Request body
 
-Use LinkedIn when you already have a direct identity seed:
-
-```json
-{
-  "linkedinUrl": "https://www.linkedin.com/in/janedoe"
-}
-```
-
-Add `partialProfile: true` when you want the run to publish an early source-backed profile before the full Deep Search pipeline finishes:
-
-```json
-{
-  "linkedinUrl": "https://www.linkedin.com/in/janedoe",
-  "partialProfile": true
-}
-```
-
-Use public URLs plus a structured name when the URL is the identity seed:
-
-```json
-{
-  "urls": ["https://github.com/janedoe"],
-  "structuredIntent": {
-    "version": "v1",
-    "names": ["Jane Doe"]
-  },
-  "partialProfile": true
-}
-```
-
-Use structured intent alone when you want Orbit to discover matching people:
-
-```json
-{
-  "mode": "candidate_discovery",
-  "structuredIntent": {
-    "version": "v1",
-    "names": ["Jai"],
-    "experiences": [{ "organization": "Orbit Intelligence" }],
-    "semanticClauses": [
-      { "text": "posts about consumer social startups" }
-    ],
-    "demographics": { "ageRange": { "min": 23, "max": 25 } }
-  }
-}
-```
-
-<ParamField body="mode" type="string">
-  Optional mode. Use `"generation"` to enrich one profile, or `"candidate_discovery"` to find candidate people from `structuredIntent`. When omitted, direct identity inputs default to `"generation"` and `structuredIntent` alone defaults to `"candidate_discovery"`.
+<ParamField body="requestId" type="string">
+  Optional idempotency key for the run. Re-sending the same `requestId` returns `200` with `status: "already_running"` instead of starting a duplicate run. When omitted, the server generates one and returns it as `request_id`.
 </ParamField>
 
-<ParamField body="email" type="string">
-  Optional email address to use as an identity hint. Email-only generation is not supported; send it with `structuredIntent` or `linkedinUrl`.
-</ParamField>
-
-<ParamField body="phoneNumber" type="string">
-  Optional phone number to use as an identity hint. Phone generation requires `structuredIntent.names[0]`; send the public field as `phoneNumber`, not `phone`.
-</ParamField>
-
-<ParamField body="linkedinUrl" type="string">
-  Optional LinkedIn profile URL to use as a Deep Search generation seed. LinkedIn alone is supported; `email`, `phoneNumber`, `urls`, `usernames`, and `structuredIntent` can also be included as hints.
-</ParamField>
-
-<ParamField body="urls" type="string[]">
-  Optional public URLs to use as source seeds or hints. `urls + structuredIntent.names[0]` is a supported profile generation path; `urls` alone is not supported.
-</ParamField>
-
-<ParamField body="usernames" type="string[]">
-  Optional usernames to use as identity hints. Usernames alone are not supported.
-</ParamField>
-
-<ParamField body="partialProfile" type="boolean">
-  Optional fast partial profile flag for generation requests. When `true`, Deep Search publishes a source-backed partial profile and profile sections as soon as they are ready, then continues the full pipeline. This flag is not supported in `candidate_discovery` mode.
+<ParamField body="runShape" type="string" default="partial_only">
+  Optional run shape: `"partial_only"` (default), `"partial_plus_full"`, `"full_generation_only"`, or `"candidate_discovery"`. Controls what the run produces and when. See [Run shapes](#run-shapes). Replaces the legacy `mode` and `partialProfile` fields.
 </ParamField>
 
 <ParamField body="structuredIntent" type="object">
-  Structured search intent. For profile generation, `names[0]` is the person name and other fields are used as matching hints. For candidate discovery, `names[0]` plus at least one discovery signal is required.
+  Optional structured search DSL object (`{ "version": "v1", "names": [...], "semanticClauses": [...], "experiences": [...], "schools": [...], "geo": {...}, "demographics": {...} }`) — the same format as the structured search endpoints. `personalization` is not supported here. See [Structured DSL](/api/search/structured-dsl).
 </ParamField>
 
-Candidate discovery requires `structuredIntent.names[0]` plus at least one supported discovery signal, such as an experience, school, semantic clause, geo place, age range, or birth-year range. Gender is not a Deep Search discovery signal by itself.
+<ParamField body="email" type="string">
+  Optional email address to use as an identity signal.
+</ParamField>
+
+<ParamField body="phoneNumber" type="string">
+  Optional phone number to use as an identity signal. Send the field as `phoneNumber`, not `phone`.
+</ParamField>
+
+<ParamField body="linkedinUrl" type="string">
+  Optional LinkedIn profile URL to use as an identity signal.
+</ParamField>
+
+<ParamField body="urls" type="string[]">
+  Optional public `http(s)` URLs to use as identity signals.
+</ParamField>
+
+<ParamField body="usernames" type="string[]">
+  Optional usernames to use as identity signals.
+</ParamField>
 
 <Note>
-  Put freeform discovery text in `structuredIntent.semanticClauses`; do not send it as top-level clauses. `entityClauses` are not part of the public structured DSL yet. Use `POST /v2/developer/search` when you need personalized network or near-me search behavior.
+  Deep Search does not have the synchronous search endpoint's API-key user network or location context, so `structuredIntent.personalization` is rejected here. Use `POST /v2/developer/search` when you need personalized network or near-me search behavior.
 </Note>
 
-### 202 Accepted
+### Run shapes
 
-Profile generation requests return `mode: "generation"`:
+| Run shape | What you get | When to use it |
+|---|---|---|
+| `partial_only` (default) | A fast, source-backed partial profile, and nothing further. | You want the quickest usable profile and do not need full enrichment. |
+| `partial_plus_full` | The fast partial profile first, then a fully enriched profile afterwards. | You want a profile available quickly and a fully enriched profile to land later. |
+| `full_generation_only` | Only the final, fully enriched profile (no fast partial). | You only care about the final fully enriched profile. |
+| `candidate_discovery` | Reserved for discovering multiple candidate people from `structuredIntent`. | Not yet available — requests currently return `503 developer_deep_search_unavailable_for_request`. |
+
+If the provided identity signals cannot start a Deep Search run, the request is rejected with `400 developer_deep_search_unprocessable_seed`.
+
+### Idempotency with requestId
+
+Idempotency is handled by the `requestId` body field rather than a header. Generate a UUID per logical run and re-send the same `requestId` on retries:
+
+- First request with a new `requestId` → `202` with `status: "started"` and a new run starts.
+- Repeat request with the same `requestId` → `200` with `status: "already_running"` and the same identifiers; no duplicate run starts.
+- Omitted `requestId` → the server generates one and returns it as `request_id`. Store it; it is also the path parameter for status polling.
+
+### Response
+
+`202` when a new run was started, `200` when an existing run was reused:
 
 ```json
 {
-  "status": "success",
-  "payload": {
-    "id": "RUN_UUID",
-    "mode": "generation",
-    "status": "processing",
-    "stage": "queued",
-    "search_id": "DEEP_SEARCH_ID",
-    "job_id": "DEEP_SEARCH_JOB_ID",
-    "cluster_group_id": null,
-    "progress_url": "/v2/developer/deep-search/RUN_UUID",
-    "events_url": "/v2/developer/deep-search/RUN_UUID/events",
-    "result": {
-      "profile_ids": []
-    }
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "started",
+  "links": {
+    "status": "/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10"
   }
 }
 ```
 
-Structured discovery requests return `mode: "arbitrary"`:
+<ResponseField name="request_id" type="string" required>
+  The run's durable id — your `requestId` if you sent one, otherwise server-generated. Use it as the path parameter when polling status and as the idempotency key on retries.
+</ResponseField>
 
-```json
-{
-  "status": "success",
-  "payload": {
-    "id": "RUN_UUID",
-    "mode": "arbitrary",
-    "status": "processing",
-    "stage": "queued",
-    "search_id": "DEEP_SEARCH_ID",
-    "job_id": "DEEP_SEARCH_JOB_ID",
-    "cluster_group_id": "CLUSTER_GROUP_ID",
-    "progress_url": "/v2/developer/deep-search/RUN_UUID",
-    "events_url": "/v2/developer/deep-search/RUN_UUID/events",
-    "result": {
-      "profile_ids": []
-    }
-  }
-}
-```
+<ResponseField name="run_id" type="string" required>
+  An opaque tracking id for this run.
+</ResponseField>
 
-The response contains identifiers only. Use `progress_url` or `events_url` to track sources, candidates, generation stage, and final profile IDs.
+<ResponseField name="status" type="string" required>
+  `"started"` when a new run was started, or `"already_running"` when the same `requestId` was reused and no new run was started.
+</ResponseField>
 
-## Get a progress snapshot
+<ResponseField name="links" type="object" required>
+  `links.status` is the relative URL of the status endpoint for this run.
+</ResponseField>
+
+## Poll run status
 
 ```http
-GET /v2/developer/deep-search/:id
+GET /v2/developer/deep-search/{requestId}
 ```
 
-Snapshot reads require the same API key that created the run.
+Poll the status endpoint until `status` is `completed` or `failed`. A few seconds between polls with backoff is appropriate; status reads share the Deep Search rate-limit bucket.
+
+While the run is in progress:
 
 ```json
 {
-  "status": "success",
-  "payload": {
-    "id": "RUN_UUID",
-    "mode": "arbitrary",
-    "status": "processing",
-    "stage": "generating_candidates",
-    "sources_unassigned": [],
-    "candidates": [
-      {
-        "cluster_id": "cluster-1",
-        "child_search_id": "child-search-1",
-        "status": "processing",
-        "stage": "generating_profile",
-        "progress_percent": 75,
-        "sources": [
-          {
-            "id": "source-1",
-            "url": "https://example.com/jai",
-            "title": "Jai at Orbit Intelligence",
-            "snippet": "Public source excerpt",
-            "source_type": "web"
-          }
-        ],
-        "profile_ids": {
-          "id": null,
-          "orbit_id": null
-        }
-      }
-    ],
-    "result": {
-      "profile_ids": []
-    }
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "running",
+  "result": null
+}
+```
+
+After the run completes:
+
+```json
+{
+  "request_id": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+  "run_id": "RUN_ID",
+  "status": "completed",
+  "result": {
+    "profile_id": "ORBIT_PROFILE_ID"
   }
 }
 ```
 
-Stable public stages are `queued`, `finding_sources`, `clustering_sources`, `dispatching_candidates`, `generating_candidates`, `generating_profile`, `partial_profile_ready`, `saving_profile`, `completed`, and `failed`.
+<ResponseField name="request_id" type="string" required>
+  The run's durable id.
+</ResponseField>
 
-### Profile ID canonicalization
+<ResponseField name="run_id" type="string | null" required>
+  An opaque tracking id for the run, or `null` if not available.
+</ResponseField>
 
-All `orbit_id` values you receive remain valid, including in-progress candidate
-IDs from polling. If a candidate is later matched to an existing Orbit profile,
-the candidate ID becomes an alias that resolves to the canonical profile.
+<ResponseField name="status" type="string" required>
+  `"running"`, `"completed"`, `"failed"`, or `"not_found"`. Treat `completed` and `failed` as terminal and stop polling. `not_found` is returned with a `404`.
+</ResponseField>
 
-Later snapshots and terminal `result.profile_ids` return the canonical
-`orbit_id` directly. If a polling snapshot appears to change from one `orbit_id`
-to another, the earlier ID is still safe to store and read. Calling
-`GET /v2/developer/profiles/:id` with either ID returns the canonical profile
-DTO, and the response's `payload.orbitId` is the canonical Orbit profile ID.
+<ResponseField name="result" type="object | null" required>
+  `null` until the run completes. On completion it contains the generated profile data — currently the Orbit profile id as `profile_id`. Read the generated profile with `GET /v2/developer/profiles/:id`.
+</ResponseField>
 
-Completed snapshots include the final profile IDs:
+Requests for an unknown `requestId` return `404` with code `developer_deep_search_run_not_found`.
 
-```json
-{
-  "status": "success",
-  "payload": {
-    "id": "RUN_UUID",
-    "mode": "generation",
-    "status": "completed",
-    "stage": "completed",
-    "result": {
-      "profile_ids": [
-        {
-          "id": "PROFILE_ID",
-          "orbit_id": "ORBIT_PROFILE_ID"
-        }
-      ]
-    }
-  }
-}
-```
+<Note>
+  The SSE events route (`GET /v2/developer/deep-search/{requestId}/events`) has been removed. Poll the status endpoint instead.
+</Note>
 
-If the run matched the generated candidate to an existing identity,
-`ORBIT_PROFILE_ID` is the existing profile's canonical Orbit ID. Use it as the
-preferred durable reference in new writes. You can still safely read any earlier
-candidate `orbit_id` because it resolves as an alias.
+## Migrating from the previous contract
 
-### Partial profile snapshots
+The endpoint paths are unchanged, but the request and response contracts are new. Legacy fields are rejected with `400 developer_deep_search_field_unsupported`, and the error message names the replacement:
 
-When a generation request includes `partialProfile: true`, snapshots and SSE progress events can include `result.partial_profile` while the run is still processing. The `partial_profile_ready` stage means the source-backed partial profile was generated. Check `result.partial_profile.profile_read` to see whether the partial profile sections are ready for profile-read queries.
+| Legacy field | Replacement |
+|---|---|
+| `mode: "generation"` | Omit; profile generation is the default behavior |
+| `mode: "candidate_discovery"` | `runShape: "candidate_discovery"` (currently unavailable) |
+| `partialProfile: true` | `runShape: "partial_only"` (default) or `"partial_plus_full"` |
+| `dry_run` | Removed; runs are always real |
+| `options` | Removed |
+| `Idempotency-Key` header | `requestId` body field |
+| `GET .../{id}/events` (SSE) | Poll `GET /v2/developer/deep-search/{requestId}` |
 
-```json
-{
-  "status": "success",
-  "payload": {
-    "id": "RUN_UUID",
-    "mode": "generation",
-    "status": "processing",
-    "stage": "partial_profile_ready",
-    "progress": {
-      "percent": 70,
-      "description": "Partial profile generated",
-      "current_step": "partial_profile_ready"
-    },
-    "search_id": "DEEP_SEARCH_ID",
-    "job_id": "DEEP_SEARCH_JOB_ID",
-    "cluster_group_id": null,
-    "sources_unassigned": [],
-    "candidates": [],
-    "result": {
-      "profile_ids": [],
-      "partial_profile": {
-        "ready": true,
-        "stage": "post_fast_partial_enrichment",
-        "source_count_included": 10,
-        "fun_fact_count": 18,
-        "profile": {
-          "id": "PROFILE_ID",
-          "orbit_id": "ORBIT_PROFILE_ID",
-          "full_name": "Jane Doe"
-        },
-        "profile_read": {
-          "status": "queued",
-          "published": true,
-          "sections_queued": true,
-          "sections_ready": false,
-          "id": "PROFILE_ID",
-          "orbit_id": "ORBIT_PROFILE_ID"
-        }
-      }
-    }
-  }
-}
-```
+Identity signals are also more permissive than before: any one of `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` is enough to start a run. If the provided signals cannot start a run, the request fails with `developer_deep_search_unprocessable_seed` instead of a field-combination validation error.
 
-`profile_read.status` can be `queued`, `ready`, `partial_failure`, or `failed`. Treat `sections_ready: true` as the signal that the partial profile sections are available through profile read. After the full run completes, use the final `result.profile_ids`; the final profile replaces the partial data.
+## Rate limits
 
-## Stream progress with SSE
+Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** per API key by default, shared across start and status requests.
 
-```http
-GET /v2/developer/deep-search/:id/events
-```
+## Credits
 
-The events endpoint emits `progress` events whenever the public snapshot changes, followed by a terminal `completed` or `failed` event.
+Starting a run costs **10 credits** by default (your operator may configure a different value). Credits are reserved before the run starts and the response includes your post-charge balance in the `X-Developer-API-Credits-Remaining` header. Status polling (`GET`) is free.
 
-```text
-event: progress
-data: {"status":"success","payload":{"id":"RUN_UUID","stage":"finding_sources"}}
-
-event: completed
-data: {"status":"success","payload":{"id":"RUN_UUID","status":"completed"}}
-```
-
-Reconnect with the same run ID to continue tracking progress. Already-terminal runs emit their terminal snapshot immediately. If the stream emits an `error` event or disconnects before a terminal event, keep the run ID and fall back to `GET /v2/developer/deep-search/:id`; snapshot reads are the recovery path for transient streaming or upstream progress-broker issues.
-
-## Credits and rate limits
-
-Each accepted Deep Search run costs **10 credits**. Snapshot and SSE reads are rate-limited but do not create new Deep Search runs or consume credits.
-
-Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** per API key by default. This applies to start, snapshot, and events requests.
+The charge is idempotent on `requestId`: retrying the same `requestId` does not charge again, and if your request reuses an already-running run (`status: "already_running"`) a fresh charge is refunded. Charges are also refunded automatically when the run is rejected or cannot be accepted. Reusing a `requestId` with different request parameters fails with `409 developer_api_idempotency_key_conflict`, and reusing one whose charge was refunded fails with `409 developer_api_idempotency_key_refunded`. If your balance cannot cover the cost, the request fails with `402 developer_api_credits_insufficient` (including `requiredCredits` and `remainingCredits`) before any work is done.
 
 ## Error responses
 
@@ -336,44 +211,39 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `mode`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, `partialProfile`, or `structuredIntent` |
-    | `developer_deep_search_input_required` | The body is missing a supported Deep Search input |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
+    | `developer_deep_search_field_invalid` | `urls` or `usernames` is not an array of strings |
+    | `developer_deep_search_url_invalid` | `urls` contains a value that is not a valid `http(s)` URL |
     | `developer_deep_search_email_invalid` | `email` is malformed |
     | `developer_deep_search_phone_invalid` | `phoneNumber` is malformed |
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
-    | `developer_deep_search_field_invalid` | `urls` or `usernames` is malformed |
-    | `developer_deep_search_email_only_unsupported` | Email-only generation is not supported; provide `structuredIntent` or `linkedinUrl` |
-    | `developer_deep_search_generation_input_required` | Generation mode is missing a supported profile generation input |
-    | `developer_deep_search_generation_minimum_path_required` | Generation requires `structuredIntent`, `linkedinUrl`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]` |
-    | `developer_deep_search_phone_name_required` | `phoneNumber` was sent without `structuredIntent.names[0]` |
-    | `developer_deep_search_candidate_discovery_structured_intent_only` | `candidate_discovery` mode only supports `structuredIntent` |
-    | `developer_deep_search_partial_profile_invalid` | `partialProfile` is present but is not a boolean |
-    | `developer_deep_search_partial_profile_generation_only` | `partialProfile` was sent in `candidate_discovery` mode |
-    | `developer_deep_search_name_required` | `structuredIntent.names[0]` is missing or empty |
-    | `developer_deep_search_arbitrary_input_required` | Structured intent is missing a discovery signal that maps to search terms, `age`, or `age_range` |
-    | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided, but Deep Search cannot honor user-context filters |
+    | `developer_deep_search_run_shape_invalid` | `runShape` is not one of `partial_only`, `partial_plus_full`, `full_generation_only`, `candidate_discovery` |
+    | `developer_deep_search_request_id_invalid` | `requestId` is not a non-empty string |
+    | `developer_deep_search_input_required` | No identity signal was provided |
+    | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided; Deep Search cannot honor user-context filters |
+    | `developer_deep_search_unprocessable_seed` | The provided identity signals could not start a Deep Search run. |
+    | `developer_deep_search_invalid_request` | The request body was rejected; the message describes what to fix. |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values |
     | `structured_intent_version_unsupported` | `structuredIntent.version` must be `"v1"` |
     | `structured_intent_entity_clauses_unsupported` | `entityClauses` are not part of the public structured DSL |
     | `structured_intent_server_owned_field` | The request includes a server-owned structured intent field |
   </Accordion>
-  <Accordion title="402 - Payment required">
+  <Accordion title="402 - Insufficient credits">
     | Code | Description |
     |---|---|
-    | `developer_api_credits_insufficient` | Your remaining credits are lower than the 10 credits required to start a run |
+    | `developer_api_credits_insufficient` | Your remaining credits are lower than the run cost. The error includes `requiredCredits` and `remainingCredits`. |
+  </Accordion>
+  <Accordion title="409 - Idempotency conflict">
+    | Code | Description |
+    |---|---|
+    | `developer_api_idempotency_key_conflict` | The `requestId` was already used with different request parameters |
+    | `developer_api_idempotency_key_refunded` | The `requestId` belongs to a run whose charge was refunded; use a new `requestId` |
   </Accordion>
   <Accordion title="404 - Not found">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_run_not_found` | The run ID does not exist for this API key |
-  </Accordion>
-  <Accordion title="409 - Conflict">
-    | Code | Description |
-    |---|---|
-    | `developer_deep_search_idempotency_key_conflict` | An explicit `Idempotency-Key` was reused with a different body |
-    | `developer_deep_search_credit_ledger_conflict` | A request-level retry matched an existing credit reservation with different request parameters |
-    | `developer_deep_search_existing_charge_without_run` | A prior retry charge exists but no matching run record was found |
+    | `developer_deep_search_run_not_found` | The `requestId` does not match a known run |
   </Accordion>
   <Accordion title="429 - Rate limited">
     | Code | Description |
@@ -383,75 +253,98 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
   <Accordion title="502 - Upstream error">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_enqueue_failed` | Deep Search did not accept the async enqueue request |
+    | `developer_deep_search_request_failed` | Deep Search did not accept the request or could not be reached. Retry later. |
+  </Accordion>
+  <Accordion title="503 - Service unavailable">
+    | Code | Description |
+    |---|---|
+    | `developer_deep_search_unavailable_for_request` | Deep Search is not available for this request (for example, `candidate_discovery` before it is available). |
+    | `developer_deep_search_unavailable` | Deep Search is currently unavailable. Retry later. |
+    | `developer_deep_search_not_configured` | Deep Search is not configured in this environment |
   </Accordion>
 </AccordionGroup>
 
 ## Code examples
 
-Direct profile generation from a LinkedIn seed with an email hint:
+Start a run from a LinkedIn seed with an email signal, requesting a fast partial followed by full generation:
 
 <CodeGroup>
 
 ```bash curl
 curl -X POST "$API_BASE/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
-  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
-  -d '{"email":"jane@example.com","linkedinUrl":"https://www.linkedin.com/in/janedoe"}'
+  -d '{
+    "requestId": "8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10",
+    "runShape": "partial_plus_full",
+    "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+    "email": "jane.doe@example.com"
+  }'
 ```
 
 ```javascript JavaScript
+const requestId = crypto.randomUUID();
+
 const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
   method: "POST",
   headers: {
     "Authorization": "Bearer sk_orb_REDACTED",
-    "Idempotency-Key": crypto.randomUUID(),
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    email: "jane@example.com",
+    requestId,
+    runShape: "partial_plus_full",
     linkedinUrl: "https://www.linkedin.com/in/janedoe",
+    email: "jane.doe@example.com",
   }),
 });
 
-const data = await response.json();
-console.log(data.payload.id, data.payload.mode);
+const run = await response.json();
+console.log(run.request_id, run.status, run.links.status);
 ```
 
 ```python Python
 import uuid
 import requests
 
+request_id = str(uuid.uuid4())
+
 response = requests.post(
     f"{API_BASE}/v2/developer/deep-search",
     headers={
         "Authorization": "Bearer sk_orb_REDACTED",
-        "Idempotency-Key": str(uuid.uuid4()),
         "Content-Type": "application/json",
     },
     json={
-        "email": "jane@example.com",
+        "requestId": request_id,
+        "runShape": "partial_plus_full",
         "linkedinUrl": "https://www.linkedin.com/in/janedoe",
+        "email": "jane.doe@example.com",
     },
 )
 
-data = response.json()
-print(data["payload"]["id"], data["payload"]["mode"])
+run = response.json()
+print(run["request_id"], run["status"])
 ```
 
 </CodeGroup>
 
-Candidate discovery from structured intent:
+Start a run from a structured intent seed:
 
 <CodeGroup>
 
 ```bash curl
 curl -X POST "$API_BASE/v2/developer/deep-search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
-  -H "Idempotency-Key: request-uuid-or-client-retry-key" \
   -H "Content-Type: application/json" \
-  -d '{"mode":"candidate_discovery","structuredIntent":{"version":"v1","names":["Jai"],"experiences":[{"organization":"Orbit Intelligence"}],"semanticClauses":[{"text":"posts about consumer social startups"}],"demographics":{"ageRange":{"min":23,"max":25}}}}'
+  -d '{
+    "structuredIntent": {
+      "version": "v1",
+      "names": ["Jane Doe"],
+      "experiences": [{ "organization": "Example Labs" }],
+      "semanticClauses": [{ "text": "writes about developer tools" }]
+    }
+  }'
 ```
 
 ```javascript JavaScript
@@ -459,50 +352,89 @@ const response = await fetch(`${API_BASE}/v2/developer/deep-search`, {
   method: "POST",
   headers: {
     "Authorization": "Bearer sk_orb_REDACTED",
-    "Idempotency-Key": crypto.randomUUID(),
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    mode: "candidate_discovery",
     structuredIntent: {
       version: "v1",
-      names: ["Jai"],
-      experiences: [{ organization: "Orbit Intelligence" }],
-      semanticClauses: [{ text: "posts about consumer social startups" }],
-      demographics: { ageRange: { min: 23, max: 25 } },
+      names: ["Jane Doe"],
+      experiences: [{ organization: "Example Labs" }],
+      semanticClauses: [{ text: "writes about developer tools" }],
     },
   }),
 });
 
-const data = await response.json();
-console.log(data.payload.id, data.payload.events_url);
+const run = await response.json();
+console.log(run.request_id, run.links.status);
 ```
 
 ```python Python
-import uuid
 import requests
 
 response = requests.post(
     f"{API_BASE}/v2/developer/deep-search",
     headers={
         "Authorization": "Bearer sk_orb_REDACTED",
-        "Idempotency-Key": str(uuid.uuid4()),
         "Content-Type": "application/json",
     },
     json={
-        "mode": "candidate_discovery",
         "structuredIntent": {
             "version": "v1",
-            "names": ["Jai"],
-            "experiences": [{"organization": "Orbit Intelligence"}],
-            "semanticClauses": [{"text": "posts about consumer social startups"}],
-            "demographics": {"ageRange": {"min": 23, "max": 25}},
+            "names": ["Jane Doe"],
+            "experiences": [{"organization": "Example Labs"}],
+            "semanticClauses": [{"text": "writes about developer tools"}],
         },
     },
 )
 
-data = response.json()
-print(data["payload"]["id"])
+run = response.json()
+print(run["request_id"], run["links"]["status"])
+```
+
+</CodeGroup>
+
+Poll until the run is terminal:
+
+<CodeGroup>
+
+```bash curl
+curl "$API_BASE/v2/developer/deep-search/8f6f2a1e-4b6d-4f3a-9d2c-1a7e5c3b9f10" \
+  -H "Authorization: Bearer sk_orb_REDACTED"
+```
+
+```javascript JavaScript
+const TERMINAL = new Set(["completed", "failed"]);
+
+let status;
+do {
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  const response = await fetch(
+    `${API_BASE}/v2/developer/deep-search/${requestId}`,
+    { headers: { "Authorization": "Bearer sk_orb_REDACTED" } },
+  );
+  status = await response.json();
+} while (!TERMINAL.has(status.status));
+
+console.log(status.status, status.result);
+```
+
+```python Python
+import time
+import requests
+
+TERMINAL = {"completed", "failed"}
+
+while True:
+    response = requests.get(
+        f"{API_BASE}/v2/developer/deep-search/{request_id}",
+        headers={"Authorization": "Bearer sk_orb_REDACTED"},
+    )
+    status = response.json()
+    if status["status"] in TERMINAL:
+        break
+    time.sleep(5)
+
+print(status["status"], status["result"])
 ```
 
 </CodeGroup>

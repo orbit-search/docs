@@ -76,22 +76,17 @@ Your error handling should always read the `error.code` field to determine what 
     | `developer_profile_query_too_long` | Profile Query received a `query` longer than 1,000 characters. |
     | `developer_profile_query_limit_invalid` | Profile Query received a `limit` that is not a positive integer. |
     | `developer_profile_query_limit_exceeded` | Profile Query received a `limit` greater than 50. |
-    | `developer_deep_search_field_unsupported` | Deep Search received a top-level body field other than `mode`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, `partialProfile`, or `structuredIntent`. |
-    | `developer_deep_search_input_required` | Deep Search did not receive a supported input. |
+    | `developer_deep_search_field_unsupported` | Deep Search received a top-level body field other than `requestId`, `runShape`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
+    | `developer_deep_search_input_required` | Deep Search did not receive an identity signal (`structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
     | `developer_deep_search_email_invalid` | Deep Search received a malformed `email`. |
     | `developer_deep_search_phone_invalid` | Deep Search received a malformed `phoneNumber`. |
     | `developer_deep_search_linkedin_invalid` | Deep Search received a malformed `linkedinUrl` or a non-profile LinkedIn URL. |
-    | `developer_deep_search_field_invalid` | Deep Search received malformed `urls` or `usernames`. |
-    | `developer_deep_search_email_only_unsupported` | Email-only Deep Search is not supported; provide `structuredIntent` or `linkedinUrl`. |
-    | `developer_deep_search_generation_input_required` | Generation mode is missing a supported profile generation input. |
-    | `developer_deep_search_generation_minimum_path_required` | Generation requires `structuredIntent`, `linkedinUrl`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]`. |
-    | `developer_deep_search_phone_name_required` | `phoneNumber` was sent without `structuredIntent.names[0]`. |
-    | `developer_deep_search_candidate_discovery_structured_intent_only` | `candidate_discovery` mode only supports `structuredIntent`. |
-    | `developer_deep_search_partial_profile_invalid` | Deep Search received a non-boolean `partialProfile` value. |
-    | `developer_deep_search_partial_profile_generation_only` | Deep Search received `partialProfile` in `candidate_discovery` mode. |
-    | `developer_deep_search_name_required` | Deep Search is missing `structuredIntent.names[0]`. |
-    | `developer_deep_search_arbitrary_input_required` | Deep Search structured intent is missing a signal that maps to search terms, `age`, or `age_range`. |
+    | `developer_deep_search_field_invalid` | Deep Search received a `urls` or `usernames` value that is not an array of strings. |
+    | `developer_deep_search_url_invalid` | Deep Search received a `urls` entry that is not a valid `http(s)` URL. |
+    | `developer_deep_search_run_shape_invalid` | Deep Search received a `runShape` other than `partial_only`, `partial_plus_full`, `full_generation_only`, or `candidate_discovery`. |
+    | `developer_deep_search_request_id_invalid` | Deep Search received a `requestId` that is not a non-empty string. |
     | `developer_deep_search_personalization_unsupported` | Deep Search received `structuredIntent.personalization`, which requires synchronous search user context. |
+    | `developer_deep_search_unprocessable_seed` | The provided Deep Search identity signals could not start a run. |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object. |
     | `structured_intent_invalid` | `structuredIntent` is malformed or contains unsupported values. |
     | `structured_intent_version_unsupported` | `structuredIntent.version` must be `"v1"`. |
@@ -117,16 +112,11 @@ Your error handling should always read the `error.code` field to determine what 
       "developer_deep_search_phone_invalid",
       "developer_deep_search_linkedin_invalid",
       "developer_deep_search_field_invalid",
-      "developer_deep_search_email_only_unsupported",
-      "developer_deep_search_generation_input_required",
-      "developer_deep_search_generation_minimum_path_required",
-      "developer_deep_search_phone_name_required",
-      "developer_deep_search_candidate_discovery_structured_intent_only",
-      "developer_deep_search_partial_profile_invalid",
-      "developer_deep_search_partial_profile_generation_only",
-      "developer_deep_search_name_required",
-      "developer_deep_search_arbitrary_input_required",
+      "developer_deep_search_url_invalid",
+      "developer_deep_search_run_shape_invalid",
+      "developer_deep_search_request_id_invalid",
       "developer_deep_search_personalization_unsupported",
+      "developer_deep_search_unprocessable_seed",
       "structured_intent_required",
       "structured_intent_invalid",
       "structured_intent_version_unsupported",
@@ -175,8 +165,8 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for Search, 10 for Deep Search, 1 for Profile Query or profile reads by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
-    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 Search or Profile Query requests per 60 seconds per API key. Deep Search has a separate 60 requests per 60 seconds limit for start, snapshot, and events. Profile reads are limited to 120 requests per 60 seconds. Back off and retry after the window resets. |
+    | 402 | `developer_api_credits_insufficient` | Your remaining credits are lower than the cost of the requested operation (2 credits for Search, 1 for Profile Query or profile reads, 10 for Deep Search by default). The response includes `requiredCredits` and `remainingCredits`. Top up your credit balance before retrying. |
+    | 429 | `developer_api_key_rate_limited` | The per-key rate limit has been exceeded. The default limit is 60 Search or Profile Query requests per 60 seconds per API key. Deep Search has a separate 60 requests per 60 seconds limit shared by start and status requests. Profile reads are limited to 120 requests per 60 seconds. Back off and retry after the window resets. |
 
     Credit-insufficient response example:
 
@@ -237,32 +227,32 @@ Your error handling should always read the `error.code` field to determine what 
   </Accordion>
 
   <Accordion title="Developer Deep Search errors">
-    These errors are specific to `POST /v2/developer/deep-search`, `GET /v2/developer/deep-search/:id`, and `GET /v2/developer/deep-search/:id/events`.
+    These errors are specific to `POST /v2/developer/deep-search` and `GET /v2/developer/deep-search/:requestId`.
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 400 | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `mode`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, `partialProfile`, or `structuredIntent`. |
-    | 400 | `developer_deep_search_input_required` | The body is missing a supported input. |
+    | 400 | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
+    | 400 | `developer_deep_search_input_required` | The body is missing an identity signal (`structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
     | 400 | `developer_deep_search_email_invalid` | `email` is malformed. |
     | 400 | `developer_deep_search_phone_invalid` | `phoneNumber` is malformed. |
     | 400 | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL. |
-    | 400 | `developer_deep_search_field_invalid` | `urls` or `usernames` is malformed. |
-    | 400 | `developer_deep_search_email_only_unsupported` | Email-only Deep Search is not supported; provide `structuredIntent` or `linkedinUrl`. |
-    | 400 | `developer_deep_search_generation_input_required` | Generation mode is missing a supported profile generation input. |
-    | 400 | `developer_deep_search_generation_minimum_path_required` | Generation requires `structuredIntent`, `linkedinUrl`, `urls + structuredIntent.names[0]`, or `phoneNumber + structuredIntent.names[0]`. |
-    | 400 | `developer_deep_search_phone_name_required` | `phoneNumber` was sent without `structuredIntent.names[0]`. |
-    | 400 | `developer_deep_search_candidate_discovery_structured_intent_only` | `candidate_discovery` mode only supports `structuredIntent`. |
-    | 400 | `developer_deep_search_partial_profile_invalid` | `partialProfile` is present but is not a boolean. |
-    | 400 | `developer_deep_search_partial_profile_generation_only` | `partialProfile` was sent in `candidate_discovery` mode. |
-    | 400 | `developer_deep_search_name_required` | Deep Search is missing `structuredIntent.names[0]`. |
-    | 400 | `developer_deep_search_arbitrary_input_required` | Deep Search structured intent is missing a signal that maps to search terms, `age`, or `age_range`. |
+    | 400 | `developer_deep_search_field_invalid` | `urls` or `usernames` is not an array of strings. |
+    | 400 | `developer_deep_search_url_invalid` | `urls` contains a value that is not a valid `http(s)` URL. |
+    | 400 | `developer_deep_search_run_shape_invalid` | `runShape` is not one of `partial_only`, `partial_plus_full`, `full_generation_only`, `candidate_discovery`. |
+    | 400 | `developer_deep_search_request_id_invalid` | `requestId` is not a non-empty string. |
     | 400 | `developer_deep_search_personalization_unsupported` | The structured intent includes personalization, which requires synchronous search user context. |
+    | 400 | `developer_deep_search_unprocessable_seed` | The provided identity signals could not start a Deep Search run. |
+    | 400 | `developer_deep_search_invalid_request` | The request body was rejected; the message describes what to fix. |
     | 400 | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object. |
-    | 404 | `developer_deep_search_run_not_found` | The run ID does not exist for this API key. |
-    | 409 | `developer_deep_search_idempotency_key_conflict` | An explicit `Idempotency-Key` was reused with different request parameters. |
-    | 409 | `developer_deep_search_credit_ledger_conflict` | A request-level retry matched an existing credit reservation with different request parameters. |
-    | 409 | `developer_deep_search_existing_charge_without_run` | A prior retry charge exists but no matching run record was found. Retry with a new idempotency key or contact support. |
-    | 502 | `developer_deep_search_enqueue_failed` | Deep Search did not accept the async enqueue request. Retry later. |
+    | 404 | `developer_deep_search_run_not_found` | The `requestId` does not match a known Deep Search run. |
+    | 502 | `developer_deep_search_request_failed` | Deep Search did not accept the request or could not be reached. Retry later. |
+    | 503 | `developer_deep_search_unavailable_for_request` | Deep Search is not available for this request (for example, `candidate_discovery` before it is available). |
+    | 503 | `developer_deep_search_unavailable` | Deep Search is currently unavailable. Retry later. |
+    | 503 | `developer_deep_search_not_configured` | Deep Search is not configured in this environment. |
+
+    <Note>
+      Deep Search idempotency is handled by the `requestId` body field, not the `Idempotency-Key` header. Re-sending the same `requestId` returns `200` with `status: "already_running"` instead of a conflict error.
+    </Note>
   </Accordion>
 
   <Accordion title="Not found">
@@ -285,11 +275,12 @@ Your error handling should always read the `error.code` field to determine what 
 
 | Status | Codes |
 |--------|-------|
-| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `developer_profile_query_required`, `developer_profile_query_too_long`, `developer_profile_query_limit_invalid`, `developer_profile_query_limit_exceeded`, `structured_intent_required`, `structured_intent_invalid`, `structured_intent_version_unsupported`, `structured_intent_entity_clauses_unsupported`, `structured_intent_server_owned_field`, `search_directory_cross_org_scope_unsupported`, `developer_deep_search_field_unsupported`, `developer_deep_search_input_required`, `developer_deep_search_email_invalid`, `developer_deep_search_phone_invalid`, `developer_deep_search_linkedin_invalid`, `developer_deep_search_field_invalid`, `developer_deep_search_email_only_unsupported`, `developer_deep_search_generation_input_required`, `developer_deep_search_generation_minimum_path_required`, `developer_deep_search_phone_name_required`, `developer_deep_search_candidate_discovery_structured_intent_only`, `developer_deep_search_partial_profile_invalid`, `developer_deep_search_partial_profile_generation_only`, `developer_deep_search_name_required`, `developer_deep_search_arbitrary_input_required`, `developer_deep_search_personalization_unsupported` |
+| 400 | `developer_query_required`, `developer_num_users_required`, `developer_num_users_limit_exceeded`, `developer_user_id_override_forbidden`, `developer_search_replay_unsupported`, `developer_profile_query_required`, `developer_profile_query_too_long`, `developer_profile_query_limit_invalid`, `developer_profile_query_limit_exceeded`, `structured_intent_required`, `structured_intent_invalid`, `structured_intent_version_unsupported`, `structured_intent_entity_clauses_unsupported`, `structured_intent_server_owned_field`, `search_directory_cross_org_scope_unsupported`, `developer_deep_search_field_unsupported`, `developer_deep_search_field_invalid`, `developer_deep_search_url_invalid`, `developer_deep_search_input_required`, `developer_deep_search_email_invalid`, `developer_deep_search_phone_invalid`, `developer_deep_search_linkedin_invalid`, `developer_deep_search_run_shape_invalid`, `developer_deep_search_request_id_invalid`, `developer_deep_search_personalization_unsupported`, `developer_deep_search_unprocessable_seed`, `developer_deep_search_invalid_request` |
 | 401 | `missing_api_key` |
 | 402 | `developer_api_credits_insufficient` |
 | 403 | `invalid_api_key`, `missing_api_key_scope`, `api_key_management_requires_user_auth`, `developer_api_key_organization_required`, `developer_api_key_organization_forbidden`, `search_directory_access_api_key_forbidden` |
 | 404 | `developer_profile_not_found`, `search_directory_not_found`, `developer_deep_search_run_not_found` |
-| 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded`, `developer_deep_search_idempotency_key_conflict`, `developer_deep_search_credit_ledger_conflict`, `developer_deep_search_existing_charge_without_run` |
+| 409 | `developer_api_idempotency_key_conflict`, `developer_api_idempotency_key_refunded` |
 | 429 | `developer_api_key_rate_limited` |
-| 502 | `developer_deep_search_enqueue_failed` |
+| 502 | `developer_deep_search_request_failed` |
+| 503 | `developer_deep_search_unavailable_for_request`, `developer_deep_search_unavailable`, `developer_deep_search_not_configured` |
