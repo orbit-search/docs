@@ -1,0 +1,30 @@
+---
+title: "Get source status"
+description: "Return the current processing status for a source. Poll this endpoint after a CSV upload until the source reaches a terminal state."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}/sources/{sourceId}/status"
+---
+
+Returns the current processing status for a source. Use this endpoint to poll after a CSV upload until the source reaches a terminal state.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory.
+</ParamField>
+
+<ParamField path="sourceId" type="string" required>
+  The UUID of the source to check.
+</ParamField>
+
+### Source status values
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Upload received; processing has not started. |
+| `processing` | Rows are being validated and materialized. |
+| `completed` | All rows have been processed. Check `accepted`, `failed`, and `warnings` for results. |
+| `failed` | Processing encountered an unrecoverable error. |

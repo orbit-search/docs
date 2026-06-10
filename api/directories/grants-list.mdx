@@ -1,0 +1,26 @@
+---
+title: "List grants"
+description: "Return all grants currently assigned to a directory."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}/grants"
+---
+
+Returns all grants currently assigned to the specified directory. See [directory access grants](/api/directories/grants-overview) for the permission model.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory whose grants you want to list.
+</ParamField>
+
+<RequestExample>
+
+```bash curl
+curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+</RequestExample>

@@ -20,7 +20,7 @@ POST /v2/developer/search/sse
 Authenticate with your developer API key in the `Authorization` header:
 
 ```bash
-curl -X POST "$API_BASE/v2/developer/search" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: your-unique-request-id" \
   -H "Content-Type: application/json" \
@@ -111,7 +111,7 @@ Search results include user IDs you can use to fetch full public profiles. Use t
 
 ```bash
 SEARCH_RESPONSE=$(
-  curl -s -X POST "$API_BASE/v2/developer/search" \
+  curl -s -X POST "https://api.orbitsearch.com/v2/developer/search" \
     -H "Authorization: Bearer sk_orb_REDACTED" \
     -H "Content-Type: application/json" \
     -d '{"query":"founders in sf","numUsers":10}'
@@ -119,7 +119,7 @@ SEARCH_RESPONSE=$(
 
 PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
-curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
+curl "https://api.orbitsearch.com/v2/developer/profiles/$PROFILE_ID" \
   -H "Authorization: Bearer sk_orb_REDACTED"
 ```
 

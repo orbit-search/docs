@@ -1,0 +1,52 @@
+---
+title: "Create a directory"
+description: "Create a new standard Orbit Search directory inside an organization."
+api: "POST /v2/organizations/{organizationId}/directories"
+---
+
+Creates a new `standard` directory inside the specified organization. Use this to set up an isolated searchable corpus before uploading source data.
+
+<Note>
+  Directory search requires an organization API key. Personal API keys cannot search directory corpora. See [directory grants](/api/directories/grants-overview) for the permission model.
+</Note>
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the organization that will own the directory.
+</ParamField>
+
+### Request body
+
+<ParamField body="name" type="string" required>
+  A human-readable display name for the directory (for example, `"Q4 Prospects"`).
+</ParamField>
+
+### Response fields
+
+<ResponseField name="id" type="string">
+  UUID that uniquely identifies this directory. Use it in all subsequent source, grant, and search requests.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The display name you provided at creation.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  Directory type. One of `standard` or `connections`. The Personal Connections directory is `connections`; all directories you create are `standard`.
+</ResponseField>
+
+<ResponseField name="org_id" type="string">
+  UUID of the organization that owns this directory.
+</ResponseField>
+
+<RequestExample>
+
+```bash curl
+curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Q4 Prospects"}'
+```
+
+</RequestExample>

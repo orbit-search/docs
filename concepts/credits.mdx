@@ -73,7 +73,7 @@ Send an `Idempotency-Key` header on every search, profile query, and profile rea
 Use a unique key per logical request — a UUID or a client-generated request ID works well:
 
 ```bash
-curl -X POST "$API_BASE/v2/developer/search" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
   -H "Authorization: Bearer sk_orb_REDACTED" \
   -H "Idempotency-Key: 7f3a2b1c-4d5e-6f7a-8b9c-0d1e2f3a4b5c" \
   -H "Content-Type: application/json" \

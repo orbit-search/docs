@@ -1,0 +1,17 @@
+---
+title: "List sources"
+description: "Return all sources that have been uploaded to an Orbit Search directory."
+api: "GET /v2/organizations/{organizationId}/directories/{directoryId}/sources"
+---
+
+Returns all sources that have been uploaded to a directory.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory whose sources you want to list.
+</ParamField>

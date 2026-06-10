@@ -1,0 +1,23 @@
+---
+title: "Archive a directory"
+description: "Archive an Orbit Search directory, immediately preventing new uploads and excluding it from search."
+api: "POST /v2/organizations/{organizationId}/directories/{directoryId}/archive"
+---
+
+Archives a directory, immediately preventing new uploads and excluding it from search. Archiving is appropriate when you want to retain the directory record without allowing further writes or queries.
+
+<Warning>
+  Archived directories cannot receive new source uploads and cannot be searched. Requests that reference an archived directory in a search scope are rejected with `search_directory_not_found`.
+
+  The auto-created **Personal Connections** directory (`type: connections`) cannot be archived or deleted.
+</Warning>
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to archive.
+</ParamField>

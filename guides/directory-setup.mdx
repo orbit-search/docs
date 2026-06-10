@@ -19,7 +19,7 @@ Search Directories let you build a private, searchable corpus of people data ins
     <CodeGroup>
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+    curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
       -H "Content-Type: application/json" \
       -d '{"name": "My Contacts"}'
@@ -27,7 +27,7 @@ Search Directories let you build a private, searchable corpus of people data ins
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories`,
+      `https://api.orbitsearch.com/v2/organizations/${ORGANIZATION_ID}/directories`,
       {
         method: "POST",
         headers: {
@@ -50,7 +50,7 @@ Search Directories let you build a private, searchable corpus of people data ins
     If the directory already exists, list the organization's directories and use each returned `id` as a `DIRECTORY_ID`.
 
     ```bash curl
-    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+    curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN"
     ```
 
@@ -64,7 +64,7 @@ Search Directories let you build a private, searchable corpus of people data ins
 
     ```bash curl
     curl -X POST \
-      "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
+      "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/csv-upload" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
       -F "file=@contacts.csv" \
       -F "idempotency_key=upload-contacts-2026-05-05"
@@ -76,7 +76,7 @@ Search Directories let you build a private, searchable corpus of people data ins
     formData.append("idempotency_key", "upload-contacts-2026-05-05");
 
     const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/csv-upload`,
+      `https://api.orbitsearch.com/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/csv-upload`,
       {
         method: "POST",
         headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
@@ -102,13 +102,13 @@ Search Directories let you build a private, searchable corpus of people data ins
     <CodeGroup>
 
     ```bash curl
-    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/$SOURCE_ID/status" \
+    curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/sources/$SOURCE_ID/status" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN"
     ```
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/${SOURCE_ID}/status`,
+      `https://api.orbitsearch.com/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/sources/${SOURCE_ID}/status`,
       {
         headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
       }
@@ -137,13 +137,13 @@ Search Directories let you build a private, searchable corpus of people data ins
     <CodeGroup>
 
     ```bash curl
-    curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/readiness" \
+    curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/readiness" \
       -H "Authorization: Bearer $USER_ACCESS_TOKEN"
     ```
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/readiness`,
+      `https://api.orbitsearch.com/v2/organizations/${ORGANIZATION_ID}/directories/${DIRECTORY_ID}/readiness`,
       {
         headers: { Authorization: `Bearer ${USER_ACCESS_TOKEN}` },
       }
@@ -162,7 +162,7 @@ Search Directories let you build a private, searchable corpus of people data ins
     <CodeGroup>
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/developer/search" \
+    curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
       -H "Authorization: Bearer $ORG_API_KEY" \
       -H "Idempotency-Key: $(uuidgen)" \
       -H "Content-Type: application/json" \
@@ -178,7 +178,7 @@ Search Directories let you build a private, searchable corpus of people data ins
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/developer/search`,
+      `https://api.orbitsearch.com/v2/developer/search`,
       {
         method: "POST",
         headers: {

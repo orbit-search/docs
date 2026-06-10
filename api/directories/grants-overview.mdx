@@ -1,0 +1,36 @@
+---
+title: "Directory access grants"
+description: "Control who can search, upload to, or administer an Orbit directory by assigning grants to organizations, users, or API keys with specific permissions."
+---
+
+Directory grants are the permission records that control access to a directory. Each grant assigns a single permission level to a principal — an organization, user, or API key. When a request arrives, Orbit checks whether the caller's principal matches any grant on the requested directory. You use the [list](/api/directories/grants-list), [create](/api/directories/grants-create), and [delete](/api/directories/grants-delete) grant endpoints to inspect and modify the grant list for any directory your credentials can manage.
+
+<Note>
+  Organization admins have implicit access to all directories within their organization and do not require explicit grants.
+
+  For developer API key directory search, the key must be an organization API key (not a personal key) and must match an `organization` or `api_key` grant with `search` or `manage` permission on the target directory. Personal API keys are always rejected for directory search.
+</Note>
+
+## Permissions
+
+<AccordionGroup>
+  <Accordion title="search">
+    Allows the principal to run directory-scoped search queries against this directory. This is the minimum permission required for an organization API key to search the directory.
+  </Accordion>
+
+  <Accordion title="upload">
+    Allows the principal to upload source data into this directory, including CSV files and connection imports.
+  </Accordion>
+
+  <Accordion title="manage">
+    Full administrative control. A principal with `manage` permission can update directory metadata, manage sources, create and delete grants, and run searches. Grants `search` and `upload` capabilities as well.
+  </Accordion>
+</AccordionGroup>
+
+## Grant principals
+
+| Principal type | What it grants access to |
+| --- | --- |
+| `organization` | All users and API keys across the entire organization. |
+| `user` | One specific organization member. |
+| `api_key` | One specific organization API key. |

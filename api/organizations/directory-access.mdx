@@ -30,7 +30,7 @@ When you create a directory, the create response returns both values:
 For an existing directory, list directories for the organization:
 
 ```bash curl
-curl "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories" \
+curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories" \
   -H "Authorization: Bearer $USER_ACCESS_TOKEN"
 ```
 
@@ -46,7 +46,7 @@ An organization API key can search a directory only when a matching grant exists
 - the specific API key, when one integration should have access
 
 ```bash curl
-curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
+curl -X POST "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY_ID/grants" \
   -H "Authorization: Bearer $USER_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -65,7 +65,7 @@ curl -X POST "$API_BASE/v2/organizations/$ORGANIZATION_ID/directories/$DIRECTORY
 Use `searchScope.type: "directory"` with the directory UUID:
 
 ```bash curl
-curl -X POST "$API_BASE/v2/developer/search" \
+curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
   -H "Authorization: Bearer $ORG_API_KEY" \
   -H "Idempotency-Key: $(uuidgen)" \
   -H "Content-Type: application/json" \

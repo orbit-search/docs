@@ -1,0 +1,23 @@
+---
+title: "Update a directory"
+description: "Update mutable fields on an Orbit Search directory, such as its display name."
+api: "PATCH /v2/organizations/{organizationId}/directories/{directoryId}"
+---
+
+Updates mutable fields on a directory, such as its display name.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory to update.
+</ParamField>
+
+### Request body
+
+<ParamField body="name" type="string">
+  New display name for the directory.
+</ParamField>

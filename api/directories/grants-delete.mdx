@@ -1,0 +1,21 @@
+---
+title: "Delete a grant"
+description: "Remove a grant from a directory. The principal immediately loses the associated permission."
+api: "DELETE /v2/organizations/{organizationId}/directories/{directoryId}/grants/{grantId}"
+---
+
+Removes a grant from a directory. The principal immediately loses the associated permission.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the owning organization.
+</ParamField>
+
+<ParamField path="directoryId" type="string" required>
+  The UUID of the directory.
+</ParamField>
+
+<ParamField path="grantId" type="string" required>
+  The UUID of the grant to delete.
+</ParamField>

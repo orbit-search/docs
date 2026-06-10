@@ -34,6 +34,20 @@
     "eyebrows": "breadcrumbs",
     "codeblocks": "dark"
   },
+  "api": {
+    "mdx": {
+      "server": "https://api.orbitsearch.com",
+      "auth": {
+        "method": "bearer"
+      }
+    },
+    "playground": {
+      "display": "interactive"
+    },
+    "examples": {
+      "languages": ["curl", "javascript", "python"]
+    }
+  },
   "navbar": {
     "links": [
       {
@@ -96,9 +110,15 @@
             "pages": [
               "api/search/smart-search",
               "api/search/structured-dsl",
-              "api/search/deep-search",
               "api/search/profile-read",
               "api/search/profile-query"
+            ]
+          },
+          {
+            "group": "Deep Search",
+            "pages": [
+              "api/search/deep-search",
+              "api/search/deep-search-status"
             ]
           },
           {
@@ -113,9 +133,34 @@
           {
             "group": "Directories",
             "pages": [
-              "api/directories/manage",
-              "api/directories/sources",
-              "api/directories/grants"
+              "api/directories/create",
+              "api/directories/list",
+              "api/directories/get",
+              "api/directories/update",
+              "api/directories/archive",
+              "api/directories/delete"
+            ]
+          },
+          {
+            "group": "Sources",
+            "pages": [
+              "api/directories/upload-workflow",
+              "api/directories/sources-upload",
+              "api/directories/sources-list",
+              "api/directories/sources-get",
+              "api/directories/sources-status",
+              "api/directories/sources-update-status",
+              "api/directories/readiness",
+              "api/directories/connections-import"
+            ]
+          },
+          {
+            "group": "Access grants",
+            "pages": [
+              "api/directories/grants-overview",
+              "api/directories/grants-list",
+              "api/directories/grants-create",
+              "api/directories/grants-delete"
             ]
           },
           {
@@ -128,5 +173,19 @@
         ]
       }
     ]
-  }
+  },
+  "redirects": [
+    {
+      "source": "/api/directories/manage",
+      "destination": "/api/directories/create"
+    },
+    {
+      "source": "/api/directories/sources",
+      "destination": "/api/directories/sources-upload"
+    },
+    {
+      "source": "/api/directories/grants",
+      "destination": "/api/directories/grants-overview"
+    }
+  ]
 }

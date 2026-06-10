@@ -8,7 +8,7 @@ The Orbit Search API lets you query a global index of public professional profil
 
 ## Prerequisites
 
-You need an active Orbit account. All requests require a `Bearer` token in the `Authorization` header. The examples below use `$API_BASE` as a placeholder for the API base URL you received when signing up.
+You need an active Orbit account. All requests require a `Bearer` token in the `Authorization` header and use the API base URL `https://api.orbitsearch.com`.
 
 ## Steps
 
@@ -31,7 +31,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     <CodeGroup>
 
     ```bash curl
-    curl -X POST "$API_BASE/v2/developer/search" \
+    curl -X POST "https://api.orbitsearch.com/v2/developer/search" \
       -H "Authorization: Bearer $ORBIT_API_KEY" \
       -H "Idempotency-Key: $(uuidgen)" \
       -H "Content-Type: application/json" \
@@ -40,7 +40,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 
     ```javascript JavaScript
     const response = await fetch(
-      `${API_BASE}/v2/developer/search`,
+      `https://api.orbitsearch.com/v2/developer/search`,
       {
         method: "POST",
         headers: {
@@ -93,7 +93,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     ```bash curl
     # Extract the profile id from the first search result and fetch its profile
     SEARCH_RESPONSE=$(
-      curl -s -X POST "$API_BASE/v2/developer/search" \
+      curl -s -X POST "https://api.orbitsearch.com/v2/developer/search" \
         -H "Authorization: Bearer $ORBIT_API_KEY" \
         -H "Content-Type: application/json" \
         -d '{"query": "founders in sf", "numUsers": 10}'
@@ -101,13 +101,13 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
 
     PROFILE_ID=$(echo "$SEARCH_RESPONSE" | jq -r '.payload.users[0].id')
 
-    curl "$API_BASE/v2/developer/profiles/$PROFILE_ID" \
+    curl "https://api.orbitsearch.com/v2/developer/profiles/$PROFILE_ID" \
       -H "Authorization: Bearer $ORBIT_API_KEY"
     ```
 
     ```javascript JavaScript
     const searchRes = await fetch(
-      `${API_BASE}/v2/developer/search`,
+      `https://api.orbitsearch.com/v2/developer/search`,
       {
         method: "POST",
         headers: {
@@ -121,7 +121,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     const profileId = searchData.payload.users[0]?.id;
 
     const profileRes = await fetch(
-      `${API_BASE}/v2/developer/profiles/${profileId}`,
+      `https://api.orbitsearch.com/v2/developer/profiles/${profileId}`,
       {
         headers: { Authorization: `Bearer ${ORBIT_API_KEY}` },
       }

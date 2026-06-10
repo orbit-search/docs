@@ -1,0 +1,28 @@
+---
+title: "List directories"
+description: "Return all directories belonging to an organization, including auto-created directories such as Personal Connections."
+api: "GET /v2/organizations/{organizationId}/directories"
+---
+
+Returns all directories belonging to the specified organization, including any auto-created directories such as Personal Connections.
+
+### Path parameters
+
+<ParamField path="organizationId" type="string" required>
+  The UUID of the organization whose directories you want to list.
+</ParamField>
+
+### Response fields
+
+<ResponseField name="directories" type="object[]">
+  Array of directory objects. Each object contains the same fields as a single directory response: `id`, `name`, `type`, and `org_id`.
+</ResponseField>
+
+<RequestExample>
+
+```bash curl
+curl "https://api.orbitsearch.com/v2/organizations/$ORGANIZATION_ID/directories" \
+  -H "Authorization: Bearer $USER_ACCESS_TOKEN"
+```
+
+</RequestExample>
