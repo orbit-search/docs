@@ -5,9 +5,9 @@ description: "Start an async Deep Search profile generation run from one or more
 api: "POST /v2/developer/deep-search"
 ---
 
-Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — a LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, the generated profile can be produced partial-first: a fast, source-backed partial profile can become available before full generation finishes.
+Developer Deep Search starts an asynchronous profile generation run from one or more identity signals — an existing `profileId`, LinkedIn URL, email, phone number, public URLs, usernames, or a [structured search intent](/api/search/structured-dsl). Depending on the run shape you choose, the generated profile can be produced partial-first: a fast, source-backed partial profile can become available before full generation finishes.
 
-After starting a run, poll [`GET /v2/developer/deep-search/{requestId}`](/api/search/deep-search-status) until the run completes. The status response returns the durable `profile_id` only; fetch the generated profile body separately with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read). There is no streaming endpoint; the previous SSE events route has been removed.
+After starting a run, poll [`GET /v2/developer/deep-search/{requestId}`](/api/search/deep-search-status) until the run completes. The status response returns the durable profile resource `id` only; fetch the generated profile body separately with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read). There is no streaming endpoint; the previous SSE events route has been removed.
 
 Requests authenticate with a developer API key that has the `search:read` scope. See [Authentication](/authentication).
 
@@ -93,14 +93,18 @@ print(run["request_id"], run["status"])
 
 ## Body parameters
 
-The request body is a strict allowlist: `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, and `usernames`. Any other top-level field is rejected. At least one identity signal — `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` — is required.
+The request body is a strict allowlist: `requestId`, `runShape`, `profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, and `usernames`. Any other top-level field is rejected. At least one identity signal — `profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` — is required.
 
 <ParamField body="requestId" type="string">
   Optional idempotency key for the run. Re-sending the same `requestId` returns `200` with `status: "already_running"` instead of starting a duplicate run. When omitted, the server generates one and returns it as `request_id`.
 </ParamField>
 
+<ParamField body="profileId" type="string">
+  Optional existing Orbit profile ID to regenerate from. Deep Search uses stored profile context, such as prior profile data, phone, LinkedIn URL, age, location, and known addresses, plus any additional identity signals you send in the same request. If the profile is already fully generated, the request returns `200` with `status: "completed"` and `result.id`; no new workflow starts.
+</ParamField>
+
 <ParamField body="runShape" type="string" default="partial_only">
-  Optional run shape: `"partial_only"` (default), `"partial_plus_full"`, `"full_generation_only"`, or `"candidate_discovery"`. Controls what the run produces and when. See [Run shapes](#run-shapes). Replaces the legacy `mode` and `partialProfile` fields.
+  Optional run shape: `"partial_only"` (default), `"partial_plus_full"`, `"full_generation_only"`, or `"candidate_discovery"`. Controls what the run produces and when. See [Run shapes](#run-shapes). Replaces the legacy `mode` and `partialProfile` fields. When `profileId` is provided, `candidate_discovery` is not valid.
 </ParamField>
 
 <ParamField body="structuredIntent" type="object">
@@ -142,6 +146,28 @@ The request body is a strict allowlist: `requestId`, `runShape`, `structuredInte
 
 If the provided identity signals cannot start a Deep Search run, the request is rejected with `400 developer_deep_search_unprocessable_seed`.
 
+## Regenerate from an existing profile
+
+Send `profileId` when you already have an Orbit profile ID from Search, Profile Read, or a previous Deep Search result. The developer API starts a Deep Search run from that profile's stored context and any extra identity signals you include in the request body.
+
+Use the same generation shapes as new runs: `partial_only`, `partial_plus_full`, or `full_generation_only`. `candidate_discovery` is rejected with `400 developer_deep_search_run_shape_invalid` when `profileId` is present. When `profileId` is the only identity signal and `runShape` is omitted, the regeneration path defaults to full generation.
+
+If the existing profile is already fully generated, Deep Search does not start a workflow. The response is immediate:
+
+```json 200
+{
+  "request_id": "regen-1",
+  "run_id": null,
+  "status": "completed",
+  "result": {
+    "id": "ORBIT_PROFILE_ID"
+  },
+  "links": {
+    "profile": "/v2/developer/profiles/ORBIT_PROFILE_ID"
+  }
+}
+```
+
 ## Idempotency with requestId
 
 Idempotency is handled by the `requestId` body field rather than a header. Generate a UUID per logical run and re-send the same `requestId` on retries:
@@ -152,22 +178,26 @@ Idempotency is handled by the `requestId` body field rather than a header. Gener
 
 ## Response
 
-`202` when a new run was started, `200` when an existing run was reused.
+`202` when a new run was started, `200` when an existing run was reused or when a `profileId` request completed immediately because the profile is already fully generated.
 
 <ResponseField name="request_id" type="string" required>
   The run's durable id — your `requestId` if you sent one, otherwise server-generated. Use it as the path parameter when [polling status](/api/search/deep-search-status) and as the idempotency key on retries.
 </ResponseField>
 
-<ResponseField name="run_id" type="string" required>
-  An opaque tracking id for this run.
+<ResponseField name="run_id" type="string | null" required>
+  An opaque tracking id for this run, or `null` when no workflow was started.
 </ResponseField>
 
 <ResponseField name="status" type="string" required>
-  `"started"` when a new run was started, or `"already_running"` when the same `requestId` was reused and no new run was started.
+  `"started"` when a new run was started, `"already_running"` when the same `requestId` was reused and no new run was started, or `"completed"` when a `profileId` request completed immediately.
 </ResponseField>
 
 <ResponseField name="links" type="object" required>
-  `links.status` is the relative URL of the status endpoint for this run.
+  `links.status` is the relative URL of the status endpoint for a started or reused run. `links.profile` is returned for an immediately completed `profileId` request.
+</ResponseField>
+
+<ResponseField name="result" type="object | null">
+  Present only for an immediately completed `profileId` request. The profile resource ID is returned as `result.id`, matching Search results and Profile Read payloads.
 </ResponseField>
 
 ## Migrating from the previous contract
@@ -181,10 +211,11 @@ The endpoint paths are unchanged, but the request and response contracts are new
 | `partialProfile: true` | `runShape: "partial_only"` (default) or `"partial_plus_full"` |
 | `dry_run` | Removed; runs are always real |
 | `options` | Removed |
+| `profile_id` or `orbit_id` | `profileId` |
 | `Idempotency-Key` header | `requestId` body field |
 | `GET .../{id}/events` (SSE) | Poll [`GET /v2/developer/deep-search/{requestId}`](/api/search/deep-search-status) |
 
-Identity signals are also more permissive than before: any one of `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` is enough to start a run. If the provided signals cannot start a run, the request fails with `developer_deep_search_unprocessable_seed` instead of a field-combination validation error.
+Identity signals are also more permissive than before: any one of `profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames` is enough to start a run. If the provided signals cannot start a run, the request fails with `developer_deep_search_unprocessable_seed` instead of a field-combination validation error.
 
 ## Rate limits
 
@@ -194,7 +225,7 @@ Deep Search uses the search rate-limit bucket: **60 requests per 60 seconds** pe
 
 Starting a run costs **10 credits** by default (your operator may configure a different value). Credits are reserved before the run starts and the response includes your post-charge balance in the `X-Developer-API-Credits-Remaining` header. Status polling (`GET`) is free.
 
-The charge is idempotent on `requestId`: retrying the same `requestId` does not charge again, and if your request reuses an already-running run (`status: "already_running"`) a fresh charge is refunded. Charges are also refunded automatically when the run is rejected or cannot be accepted. Reusing a `requestId` with different request parameters fails with `409 developer_api_idempotency_key_conflict`, and reusing one whose charge was refunded fails with `409 developer_api_idempotency_key_refunded`. If your balance cannot cover the cost, the request fails with `402 developer_api_credits_insufficient` (including `requiredCredits` and `remainingCredits`) before any work is done.
+The charge is idempotent on `requestId`: retrying the same `requestId` does not charge again, and if your request reuses an already-running run (`status: "already_running"`) a fresh charge is refunded. If a `profileId` request completes immediately because the profile is already fully generated, no new run starts and the reserved Deep Search charge is refunded. Charges are also refunded automatically when the run is rejected or cannot be accepted. Reusing a `requestId` with different request parameters fails with `409 developer_api_idempotency_key_conflict`, and reusing one whose charge was refunded fails with `409 developer_api_idempotency_key_refunded`. If your balance cannot cover the cost, the request fails with `402 developer_api_credits_insufficient` (including `requiredCredits` and `remainingCredits`) before any work is done.
 
 ## Error responses
 
@@ -202,7 +233,7 @@ The charge is idempotent on `requestId`: retrying the same `requestId` does not 
   <Accordion title="400 - Bad request">
     | Code | Description |
     |---|---|
-    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
+    | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`, `profile_id`, `orbit_id`) are flagged with a replacement hint. |
     | `developer_deep_search_field_invalid` | `urls` or `usernames` is not an array of strings |
     | `developer_deep_search_url_invalid` | `urls` contains a value that is not a valid `http(s)` URL |
     | `developer_deep_search_email_invalid` | `email` is malformed |
@@ -210,6 +241,7 @@ The charge is idempotent on `requestId`: retrying the same `requestId` does not 
     | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL |
     | `developer_deep_search_run_shape_invalid` | `runShape` is not one of `partial_only`, `partial_plus_full`, `full_generation_only`, `candidate_discovery` |
     | `developer_deep_search_request_id_invalid` | `requestId` is not a non-empty string |
+    | `developer_deep_search_profile_id_invalid` | `profileId` is not a non-empty string |
     | `developer_deep_search_input_required` | No identity signal was provided |
     | `developer_deep_search_personalization_unsupported` | `structuredIntent.personalization` was provided; Deep Search cannot honor user-context filters |
     | `developer_deep_search_unprocessable_seed` | The provided identity signals could not start a Deep Search run. |
