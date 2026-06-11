@@ -215,7 +215,7 @@ event: search_id
 data: {"searchId":"uuid"}
 
 event: update
-data: {"id":"PROFILE_ID","orbitId":"ORBIT_PROFILE_ID","matchReason":{"reason":"..."}}
+data: {"id":"PROFILE_ID","matchReason":{"reason":"..."}}
 ```
 
 Validation, authentication, rate-limit, and credit failures before the stream starts return regular JSON errors. After the stream starts, errors are emitted on the event stream.
@@ -233,7 +233,7 @@ Validation, authentication, rate-limit, and credit failures before the stream st
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.users" type="object[]" required>
-      Array of matched profile objects, ranked by relevance. Each object includes at minimum an `id` field you can pass to the [Profile Read](/api/search/profile-read) endpoint. Results may also include `orbitId` for correlation with Orbit profile records. The array is empty when no profiles matched.
+      Array of matched profile objects, ranked by relevance. Each object includes an `id` field containing the canonical public profile ID you can pass to the [Profile Read](/api/search/profile-read) endpoint. The array is empty when no profiles matched.
     </ResponseField>
   </Expandable>
 </ResponseField>
