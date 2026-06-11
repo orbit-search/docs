@@ -64,7 +64,6 @@ print(profile_query["payload"]["matches"])
   "payload": {
     "profile": {
       "id": "orbit-profile-id",
-      "orbitId": "orbit-profile-id",
       "displayName": "Ada Lovelace"
     },
     "query": "founder experience",
@@ -107,7 +106,7 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
 ## Path parameters
 
 <ParamField path="id" type="string" required>
-  The profile ID to search. This is the `id` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response. You can also pass the public `orbitId` from a [Profile read](/api/search/profile-read) response.
+  The profile ID to search. This is the `id` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response or the `payload.id` value from a [Profile read](/api/search/profile-read) response.
 </ParamField>
 
 ## Body parameters
@@ -135,10 +134,7 @@ Always send an `Idempotency-Key` header. If you omit it, the server uses the req
 
       <Expandable title="properties">
         <ResponseField name="payload.profile.id" type="string" required>
-          The public profile identifier returned by the API. This is the `orbitId` when available. If the profile does not have an `orbitId`, this falls back to the profile identifier you supplied in the path and can be used again as `:id` for Profile Query or Profile Read.
-        </ResponseField>
-        <ResponseField name="payload.profile.orbitId" type="string">
-          The stable Orbit profile identifier. Present when the profile has an Orbit ID. Prefer this value for caching and cross-surface correlation when it is present.
+          The canonical public profile ID returned by the API. If the requested ID resolves through an alias, this can differ from the original requested ID and can be used again as `:id` for Profile Query or Profile Read.
         </ResponseField>
         <ResponseField name="payload.profile.displayName" type="string">
           The user's public display name.
@@ -203,7 +199,6 @@ A successful profile query can return an empty `matches` array when the profile 
   "payload": {
     "profile": {
       "id": "orbit-profile-id",
-      "orbitId": "orbit-profile-id",
       "displayName": "Ada Lovelace"
     },
     "query": "favorite espresso machine",

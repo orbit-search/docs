@@ -49,8 +49,7 @@ print(profile["payload"]["displayName"])
 {
   "status": "success",
   "payload": {
-    "id": "usr_a1b2c3d4e5f6",
-    "orbitId": "orbit-profile-id",
+    "id": "orbit-profile-id",
     "displayName": "Ada Lovelace",
     "avatarUrl": "https://...",
     "profileUrl": "https://orbitsearch.com/ada",
@@ -137,10 +136,7 @@ print(profile["payload"]["displayName"])
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.id" type="string" required>
-      The profile ID returned by the read. If the requested ID resolves through an alias, this can belong to the canonical profile rather than the original requested ID.
-    </ResponseField>
-    <ResponseField name="payload.orbitId" type="string" required>
-      The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces and to update any stored alias IDs.
+      The canonical public profile ID returned by the read. If the requested ID resolves through an alias, this can differ from the original requested ID.
     </ResponseField>
     <ResponseField name="payload.displayName" type="string">
       The user's public display name.
@@ -251,7 +247,7 @@ profile.
 
 This means the ID in the request path and the identifiers in the response may
 not be identical. You can safely read either the alias ID or the canonical ID.
-Treat `payload.orbitId` as the canonical Orbit profile ID after every successful
+Treat `payload.id` as the canonical public profile ID after every successful
 read, and prefer it for new writes or normalized storage.
 
 Alias resolution is transparent. The response does not include separate
