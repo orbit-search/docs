@@ -137,7 +137,7 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
     {
       "status": "success",
       "payload": {
-        "id": "usr_a1b2c3d4e5f6",
+        "id": "orbit-profile-id",
         "orbitId": "orbit-profile-id",
         "displayName": "Ada Lovelace",
         "avatarUrl": "https://...",
@@ -166,24 +166,13 @@ You need an active Orbit account. All requests require a `Bearer` token in the `
                 "location": "San Francisco, CA"
               }
             ]
-          },
-          "personalLife": null,
-          "jobs": null,
-          "education": null,
-          "passions": null,
-          "worldview": null,
-          "accomplishments": null,
-          "controversies": null,
-          "bestQualities": null,
-          "netWorth": null,
-          "portfolio": null,
-          "families": null
+          }
         }
       }
     }
     ```
 
-    The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Profiles may also include optional contribution sections such as `mediaCredits`, `musicCredits`, `researchPapers`, `githubRepos`, and `books` when public contribution data is available. Each profile read costs 1 credit by default; failed or not-found reads are refunded automatically.
+    The profile DTO is an allowlisted public shape. It does not expose raw contact details, phone numbers, internal moderation metadata, or profile-owner-only fields. Sections with no public data are omitted. Profiles may also include optional contribution sections such as `mediaCredits`, `musicCredits`, `researchPapers`, `githubRepos`, and `books` when public contribution data is available. Each profile read costs 1 credit by default; failed or not-found reads are refunded automatically.
   </Step>
 </Steps>
 
