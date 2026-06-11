@@ -76,8 +76,8 @@ Your error handling should always read the `error.code` field to determine what 
     | `developer_profile_query_too_long` | Profile Query received a `query` longer than 1,000 characters. |
     | `developer_profile_query_limit_invalid` | Profile Query received a `limit` that is not a positive integer. |
     | `developer_profile_query_limit_exceeded` | Profile Query received a `limit` greater than 50. |
-    | `developer_deep_search_field_unsupported` | Deep Search received a top-level body field other than `requestId`, `runShape`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
-    | `developer_deep_search_input_required` | Deep Search did not receive an identity signal (`structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
+    | `developer_deep_search_field_unsupported` | Deep Search received a top-level body field other than `requestId`, `runShape`, `profileId`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`, `profile_id`, `orbit_id`) are flagged with a replacement hint. |
+    | `developer_deep_search_input_required` | Deep Search did not receive an identity signal (`profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
     | `developer_deep_search_email_invalid` | Deep Search received a malformed `email`. |
     | `developer_deep_search_phone_invalid` | Deep Search received a malformed `phoneNumber`. |
     | `developer_deep_search_linkedin_invalid` | Deep Search received a malformed `linkedinUrl` or a non-profile LinkedIn URL. |
@@ -85,6 +85,7 @@ Your error handling should always read the `error.code` field to determine what 
     | `developer_deep_search_url_invalid` | Deep Search received a `urls` entry that is not a valid `http(s)` URL. |
     | `developer_deep_search_run_shape_invalid` | Deep Search received a `runShape` other than `partial_only`, `partial_plus_full`, `full_generation_only`, or `candidate_discovery`. |
     | `developer_deep_search_request_id_invalid` | Deep Search received a `requestId` that is not a non-empty string. |
+    | `developer_deep_search_profile_id_invalid` | Deep Search received a `profileId` that is not a non-empty string. |
     | `developer_deep_search_personalization_unsupported` | Deep Search received `structuredIntent.personalization`, which requires synchronous search user context. |
     | `developer_deep_search_unprocessable_seed` | The provided Deep Search identity signals could not start a run. |
     | `structured_intent_required` | `structuredIntent` was provided but its value is not a valid object. |
@@ -231,8 +232,8 @@ Your error handling should always read the `error.code` field to determine what 
 
     | HTTP | Code | Description |
     |------|------|-------------|
-    | 400 | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`) are flagged with a replacement hint. |
-    | 400 | `developer_deep_search_input_required` | The body is missing an identity signal (`structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
+    | 400 | `developer_deep_search_field_unsupported` | The body includes a top-level field other than `requestId`, `runShape`, `profileId`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, `usernames`, or `structuredIntent`. Legacy fields (`mode`, `partialProfile`, `dry_run`, `options`, `profile_id`, `orbit_id`) are flagged with a replacement hint. |
+    | 400 | `developer_deep_search_input_required` | The body is missing an identity signal (`profileId`, `structuredIntent`, `email`, `phoneNumber`, `linkedinUrl`, `urls`, or `usernames`). |
     | 400 | `developer_deep_search_email_invalid` | `email` is malformed. |
     | 400 | `developer_deep_search_phone_invalid` | `phoneNumber` is malformed. |
     | 400 | `developer_deep_search_linkedin_invalid` | `linkedinUrl` is malformed or is not a LinkedIn profile URL. |
@@ -240,6 +241,7 @@ Your error handling should always read the `error.code` field to determine what 
     | 400 | `developer_deep_search_url_invalid` | `urls` contains a value that is not a valid `http(s)` URL. |
     | 400 | `developer_deep_search_run_shape_invalid` | `runShape` is not one of `partial_only`, `partial_plus_full`, `full_generation_only`, `candidate_discovery`. |
     | 400 | `developer_deep_search_request_id_invalid` | `requestId` is not a non-empty string. |
+    | 400 | `developer_deep_search_profile_id_invalid` | `profileId` is not a non-empty string. |
     | 400 | `developer_deep_search_personalization_unsupported` | The structured intent includes personalization, which requires synchronous search user context. |
     | 400 | `developer_deep_search_unprocessable_seed` | The provided identity signals could not start a Deep Search run. |
     | 400 | `developer_deep_search_invalid_request` | The request body was rejected; the message describes what to fix. |

@@ -7,7 +7,7 @@ api: "GET /v2/developer/deep-search/{requestId}"
 
 Poll the status endpoint until `status` is `completed` or `failed`. A few seconds between polls with backoff is appropriate; status reads share the Deep Search rate-limit bucket. Status polling is free — it does not consume credits.
 
-On completion the result contains the durable `profile_id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
+On completion the result contains the durable profile resource `id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
 
 Requests authenticate with a developer API key that has the `search:read` scope. See [Authentication](/authentication).
 
@@ -72,7 +72,7 @@ print(status["status"], status["result"])
   "run_id": "RUN_ID",
   "status": "completed",
   "result": {
-    "profile_id": "ORBIT_PROFILE_ID"
+    "id": "ORBIT_PROFILE_ID"
   }
 }
 ```
@@ -100,7 +100,7 @@ print(status["status"], status["result"])
 </ResponseField>
 
 <ResponseField name="result" type="object | null" required>
-  `null` until the run completes. On completion it contains the durable Orbit profile id as `profile_id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
+  `null` until the run completes. On completion it contains the durable Orbit profile resource id as `id` only. Read the generated profile body with [`GET /v2/developer/profiles/{id}`](/api/search/profile-read).
 </ResponseField>
 
 <Note>
