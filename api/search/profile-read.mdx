@@ -1,23 +1,23 @@
 ---
 title: "Get a profile"
-description: "Fetch the public profile DTO for a single Orbit user by ID. Use profile IDs returned from search results to retrieve structured profile data."
+description: "Fetch the public profile DTO for a single Orbit user by ID. Use Orbit profile IDs returned from search results to retrieve structured profile data."
 api: "GET /v2/developer/profiles/{id}"
 ---
 
-The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the profile ID from the `id` field in search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
+The profile read endpoint returns a stable, public profile object for a given Orbit user. You get the Orbit profile ID from the `id` field in search results, then call this endpoint to retrieve structured data including display name, location, headline, and profile sections. Each successful read costs 1 credit. Reads that return a not-found response or fail for other reasons are automatically refunded.
 
 Requests authenticate with a developer API key that has the `profile:read` scope. See [Authentication](/authentication).
 
 <RequestExample>
 
 ```bash curl
-curl "https://api.orbitsearch.com/v2/developer/profiles/usr_a1b2c3d4e5f6" \
+curl "https://api.orbitsearch.com/v2/developer/profiles/orbit-profile-id" \
   -H "Authorization: Bearer sk_orb_REDACTED"
 ```
 
 ```javascript JavaScript
 const response = await fetch(
-  "https://api.orbitsearch.com/v2/developer/profiles/usr_a1b2c3d4e5f6",
+  "https://api.orbitsearch.com/v2/developer/profiles/orbit-profile-id",
   {
     headers: {
       "Authorization": "Bearer sk_orb_REDACTED",
@@ -33,7 +33,7 @@ console.log(profile.payload.displayName);
 import requests
 
 response = requests.get(
-    "https://api.orbitsearch.com/v2/developer/profiles/usr_a1b2c3d4e5f6",
+    "https://api.orbitsearch.com/v2/developer/profiles/orbit-profile-id",
     headers={"Authorization": "Bearer sk_orb_REDACTED"},
 )
 
@@ -49,7 +49,7 @@ print(profile["payload"]["displayName"])
 {
   "status": "success",
   "payload": {
-    "id": "usr_a1b2c3d4e5f6",
+    "id": "orbit-profile-id",
     "orbitId": "orbit-profile-id",
     "displayName": "Ada Lovelace",
     "avatarUrl": "https://...",
@@ -79,17 +79,50 @@ print(profile["payload"]["displayName"])
           }
         ]
       },
-      "personalLife": null,
-      "jobs": null,
-      "education": null,
-      "passions": null,
-      "worldview": null,
-      "accomplishments": null,
-      "controversies": null,
-      "bestQualities": null,
-      "netWorth": null,
-      "portfolio": null,
-      "families": null,
+      "funFacts": {
+        "items": [
+          {
+            "id": "fun-fact-id",
+            "kind": "fun_fact",
+            "text": "Wrote the first published computer program",
+            "labels": ["history"],
+            "displayOrder": 1
+          }
+        ]
+      },
+      "images": {
+        "items": [
+          {
+            "id": "image-id",
+            "imageUrl": "https://...",
+            "imageRole": "primary",
+            "displayOrder": 1
+          }
+        ]
+      },
+      "socialHandles": {
+        "items": [
+          {
+            "id": "social-handle-id",
+            "media": "github",
+            "handle": "ada",
+            "icon": "https://...",
+            "priority": 1
+          }
+        ]
+      },
+      "sources": {
+        "items": [
+          {
+            "id": "source-id",
+            "link": "https://example.com/articles/ada",
+            "title": "Example article about Ada",
+            "summary": "A short summary of the source.",
+            "sourceName": "example.com",
+            "sourceImage": "https://www.google.com/s2/favicons?sz=64&domain=example.com"
+          }
+        ]
+      },
       "mediaCredits": {
         "items": [
           {
@@ -125,7 +158,7 @@ print(profile["payload"]["displayName"])
 ## Path parameters
 
 <ParamField path="id" type="string" required>
-  The profile ID to fetch. This is the `id` value returned in the `payload.users` array from a [Search](/api/search/smart-search) response.
+  The Orbit profile ID to fetch. This is the canonical identifier returned as `id` in the `payload.users` array from a [Search](/api/search/smart-search) response. Legacy profile IDs from older integrations continue to resolve during the migration window, and IDs of profiles that have been merged resolve to the canonical profile automatically.
 </ParamField>
 
 ## Response
@@ -137,10 +170,10 @@ print(profile["payload"]["displayName"])
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.id" type="string" required>
-      The profile ID returned by the read. If the requested ID resolves through an alias, this can belong to the canonical profile rather than the original requested ID.
+      The canonical Orbit profile ID. If you requested a legacy or merged profile ID, this is the canonical profile's ID rather than the ID you requested. Use this value for storage and for subsequent profile reads.
     </ResponseField>
     <ResponseField name="payload.orbitId" type="string" required>
-      The stable Orbit profile identifier. Use this to correlate profiles across Orbit surfaces and to update any stored alias IDs.
+      The canonical Orbit profile ID, duplicated from `payload.id` while older integrations migrate. The two fields always carry the same value.
     </ResponseField>
     <ResponseField name="payload.displayName" type="string">
       The user's public display name.
@@ -179,44 +212,128 @@ print(profile["payload"]["displayName"])
       </Expandable>
     </ResponseField>
     <ResponseField name="payload.sections" type="object">
-      Structured profile sections. Standard profile sections are returned as objects with section-specific `items` or as `null` when no public data is available. Contribution sections are optional and are only included when Orbit has public contribution data.
+      Structured profile sections. Each section is an object with section-specific `items`. Sections with no public data are omitted from the response, as are sections the profile owner has chosen to hide. Contribution sections are only included when Orbit has public contribution data.
 
       <Expandable title="properties">
-        <ResponseField name="payload.sections.basic" type="object | null">
+        <ResponseField name="payload.sections.basic" type="object">
           Basic profile information including school and location as entered by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.personalLife" type="object | null">
+        <ResponseField name="payload.sections.personalLife" type="object">
           Personal life information shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.jobs" type="object | null">
+        <ResponseField name="payload.sections.jobs" type="object">
           Work history shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.education" type="object | null">
+        <ResponseField name="payload.sections.education" type="object">
           Education history shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.passions" type="object | null">
+        <ResponseField name="payload.sections.passions" type="object">
           Interests and passions shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.worldview" type="object | null">
+        <ResponseField name="payload.sections.worldview" type="object">
           Worldview or values shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.accomplishments" type="object | null">
+        <ResponseField name="payload.sections.accomplishments" type="object">
           Notable accomplishments shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.controversies" type="object | null">
+        <ResponseField name="payload.sections.controversies" type="object">
           Public controversies associated with the user.
         </ResponseField>
-        <ResponseField name="payload.sections.bestQualities" type="object | null">
+        <ResponseField name="payload.sections.bestQualities" type="object">
           Best qualities highlighted by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.netWorth" type="object | null">
+        <ResponseField name="payload.sections.netWorth" type="object">
           Net worth information where publicly available.
         </ResponseField>
-        <ResponseField name="payload.sections.portfolio" type="object | null">
+        <ResponseField name="payload.sections.portfolio" type="object">
           Portfolio or work samples shared by the user.
         </ResponseField>
-        <ResponseField name="payload.sections.families" type="object | null">
-          Family information shared by the user.
+        <ResponseField name="payload.sections.funFacts" type="object">
+          Short fun facts about the user.
+
+          <Expandable title="item properties">
+            <ResponseField name="payload.sections.funFacts.items[].id" type="string" required>
+              Identifier for the fun fact.
+            </ResponseField>
+            <ResponseField name="payload.sections.funFacts.items[].kind" type="string" required>
+              Always `"fun_fact"`.
+            </ResponseField>
+            <ResponseField name="payload.sections.funFacts.items[].text" type="string" required>
+              The fun fact text.
+            </ResponseField>
+            <ResponseField name="payload.sections.funFacts.items[].labels" type="string[]">
+              Topic labels for the fun fact, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.funFacts.items[].displayOrder" type="number">
+              Sort order for display, when available.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="payload.sections.images" type="object">
+          Public profile images.
+
+          <Expandable title="item properties">
+            <ResponseField name="payload.sections.images.items[].id" type="string" required>
+              Identifier for the image.
+            </ResponseField>
+            <ResponseField name="payload.sections.images.items[].imageUrl" type="string" required>
+              URL of the image.
+            </ResponseField>
+            <ResponseField name="payload.sections.images.items[].imageRole" type="string" required>
+              Role of the image on the profile, such as `"primary"`.
+            </ResponseField>
+            <ResponseField name="payload.sections.images.items[].displayOrder" type="number">
+              Sort order for display, when available.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="payload.sections.socialHandles" type="object">
+          Public social media handles linked to the profile.
+
+          <Expandable title="item properties">
+            <ResponseField name="payload.sections.socialHandles.items[].id" type="string" required>
+              Identifier for the social handle.
+            </ResponseField>
+            <ResponseField name="payload.sections.socialHandles.items[].media" type="string">
+              The social platform, such as `"github"`, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.socialHandles.items[].handle" type="string">
+              The user's handle on the platform, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.socialHandles.items[].description" type="string">
+              Description of the handle, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.socialHandles.items[].icon" type="string">
+              Icon URL for the platform, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.socialHandles.items[].priority" type="number">
+              Sort order for display, when available.
+            </ResponseField>
+          </Expandable>
+        </ResponseField>
+        <ResponseField name="payload.sections.sources" type="object">
+          Public sources that back the profile's content.
+
+          <Expandable title="item properties">
+            <ResponseField name="payload.sections.sources.items[].id" type="string">
+              Identifier for the source, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.sources.items[].link" type="string" required>
+              URL of the source.
+            </ResponseField>
+            <ResponseField name="payload.sections.sources.items[].title" type="string">
+              Title of the source, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.sources.items[].summary" type="string">
+              Short summary of the source, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.sources.items[].sourceName" type="string">
+              Name of the source or publisher, when available.
+            </ResponseField>
+            <ResponseField name="payload.sections.sources.items[].sourceImage" type="string">
+              Image or favicon URL for the source, when available.
+            </ResponseField>
+          </Expandable>
         </ResponseField>
         <ResponseField name="payload.sections.researchPapers" type="object">
           Public research paper contributions. Included only when Orbit has contribution data.
@@ -244,15 +361,17 @@ print(profile["payload"]["displayName"])
 
 ## Profile ID canonicalization
 
-Profile reads accept IDs returned from Search, Deep Search, and previous profile
-reads. All of those IDs remain valid. If the requested ID is an alias for an
-existing identity, Orbit resolves the alias and returns the canonical public
-profile.
+The canonical profile identifier is the Orbit profile ID — the `id` value
+returned by Search, Deep Search, and previous profile reads. Pass it directly
+in the request path.
 
-This means the ID in the request path and the identifiers in the response may
-not be identical. You can safely read either the alias ID or the canonical ID.
-Treat `payload.orbitId` as the canonical Orbit profile ID after every successful
-read, and prefer it for new writes or normalized storage.
+Legacy profile IDs from older integrations continue to resolve during the
+migration window, and IDs of profiles that have been merged into another
+profile resolve to the canonical profile instead of returning a `404`. In both
+cases the ID in the request path and the identifiers in the response may not be
+identical. Treat `payload.id` (or `payload.orbitId` — the two always match) as
+the canonical Orbit profile ID after every successful read, and prefer it for
+normalized storage and subsequent requests.
 
 Alias resolution is transparent. The response does not include separate
 `requestedId`, `aliasOrbitId`, or `canonicalOrbitId` fields.
