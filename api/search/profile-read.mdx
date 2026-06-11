@@ -158,7 +158,7 @@ print(profile["payload"]["displayName"])
 ## Path parameters
 
 <ParamField path="id" type="string" required>
-  The Orbit profile ID to fetch. This is the canonical identifier returned as `id` in the `payload.users` array from a [Search](/api/search/smart-search) response. Legacy profile IDs from older integrations continue to resolve during the migration window, and IDs of profiles that have been merged resolve to the canonical profile automatically.
+  The Orbit profile ID to fetch. This is the canonical identifier returned as `id` in the `payload.users` array from a [Search](/api/search/smart-search) response. IDs of profiles that have been merged resolve to the canonical profile automatically.
 </ParamField>
 
 ## Response
@@ -170,7 +170,7 @@ print(profile["payload"]["displayName"])
 <ResponseField name="payload" type="object" required>
   <Expandable title="properties" defaultOpen>
     <ResponseField name="payload.id" type="string" required>
-      The canonical Orbit profile ID. If you requested a legacy or merged profile ID, this is the canonical profile's ID rather than the ID you requested. Use this value for storage and for subsequent profile reads.
+      The canonical Orbit profile ID. If you requested the ID of a profile that has since been merged, this is the canonical profile's ID rather than the ID you requested. Use this value for storage and for subsequent profile reads.
     </ResponseField>
     <ResponseField name="payload.orbitId" type="string" required>
       The canonical Orbit profile ID, duplicated from `payload.id` while older integrations migrate. The two fields always carry the same value.
@@ -365,11 +365,9 @@ The canonical profile identifier is the Orbit profile ID — the `id` value
 returned by Search, Deep Search, and previous profile reads. Pass it directly
 in the request path.
 
-Legacy profile IDs from older integrations continue to resolve during the
-migration window, and IDs of profiles that have been merged into another
-profile resolve to the canonical profile instead of returning a `404`. In both
-cases the ID in the request path and the identifiers in the response may not be
-identical. Treat `payload.id` (or `payload.orbitId` — the two always match) as
+IDs of profiles that have been merged into another profile resolve to the
+canonical profile instead of returning a `404`, so the ID in the request path
+and the identifiers in the response may not be identical. Treat `payload.id` (or `payload.orbitId` — the two always match) as
 the canonical Orbit profile ID after every successful read, and prefer it for
 normalized storage and subsequent requests.
 
