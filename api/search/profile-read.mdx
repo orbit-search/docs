@@ -51,6 +51,7 @@ print(profile["payload"]["displayName"])
   "payload": {
     "id": "orbit-profile-id",
     "displayName": "Ada Lovelace",
+    "personName": "Ada Lovelace",
     "avatarUrl": "https://...",
     "profileUrl": "https://orbitsearch.com/ada",
     "verified": true,
@@ -79,6 +80,24 @@ print(profile["payload"]["displayName"])
         ]
       },
       "personalLife": null,
+      "images": {
+        "items": [
+          {
+            "id": "image-1",
+            "imageUrl": "https://...",
+            "role": "primary",
+            "type": "default",
+            "question": "profile photo",
+            "sources": []
+          },
+          {
+            "id": "image-2",
+            "imageUrl": "https://...",
+            "role": "social_media",
+            "sources": []
+          }
+        ]
+      },
       "jobs": null,
       "education": null,
       "passions": null,
@@ -141,6 +160,9 @@ print(profile["payload"]["displayName"])
     <ResponseField name="payload.displayName" type="string">
       The user's public display name.
     </ResponseField>
+    <ResponseField name="payload.personName" type="string">
+      The person's public name when available. This usually matches `displayName`.
+    </ResponseField>
     <ResponseField name="payload.avatarUrl" type="string">
       URL of the user's public avatar image. May be `null` if the user has not set a profile photo.
     </ResponseField>
@@ -183,6 +205,9 @@ print(profile["payload"]["displayName"])
         </ResponseField>
         <ResponseField name="payload.sections.personalLife" type="object | null">
           Personal life information shared by the user.
+        </ResponseField>
+        <ResponseField name="payload.sections.images" type="object | null">
+          Person-qualified profile images. Images are filtered through Orbit's slideshow image selector and include metadata such as `role`, `type`, `question`, and `sources` when available.
         </ResponseField>
         <ResponseField name="payload.sections.jobs" type="object | null">
           Work history shared by the user.
